@@ -1,3 +1,4 @@
+This is the code base for CVPR2022 paper "**Learning to prompt for Learning to Prompt for Open-Vocabulary Object Detection with Vision-Language Model**'
 # Prepare data
 Download dataset according to [LVIS](https://www.lvisdataset.org/) [VOC](http://host.robots.ox.ac.uk/pascal/VOC/) [COCO](https://cocodataset.org/#home) [Objects365](https://www.objects365.org/overview.html)
 # Installation
