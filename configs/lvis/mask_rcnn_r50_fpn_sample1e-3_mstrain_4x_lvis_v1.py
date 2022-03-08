@@ -1,0 +1,46 @@
+_base_ = [
+    '../_base_/models/mask_rcnn_r50_fpn.py',
+    '../_base_/datasets/lvis_v1_instance.py',
+    '../_base_/schedules/schedule_4x.py', '../_base_/default_runtime.py'
+]
+optimizer = dict(type='SGD', lr=0.04, momentum=0.9, weight_decay=0.0004)
+model = dict(
+    roi_head=dict(
+        bbox_head=dict(num_classes=1203), mask_head=dict(num_classes=1203)),
+        # bbox_head=dict(num_classes=866), mask_head=dict(num_classes=866)),
+    test_cfg=dict(
+        rcnn=dict(
+            score_thr=0.001,
+            # LVIS allows up to 300
+            max_per_img=300)))
+img_norm_cfg = dict(
+    mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
+train_pipeline = [
+    dict(type='LoadImageFromFile'),
+    # dict(
+    #     type='InstaBoost',
+    #     action_candidate=('normal', 'horizontal', 'skip'),
+    #     action_prob=(1, 0, 0),
+    #     scale=(0.8, 1.2),
+    #     dx=15,
+    #     dy=15,
+    #     theta=(-1, 1),
+    #     color_prob=0.5,
+    #     hflag=False,
+    #     aug_ratio=0.5),
+    dict(type='LoadProposals', num_max_proposals=None),
+    dict(type='LoadAnnotations', with_bbox=True, with_mask=True),
+    dict(
+        type='Resize',
+        img_scale=[(1333, 640), (1333, 672), (1333, 704), (1333, 736),
+                   (1333, 768), (1333, 800)],
+        multiscale_mode='value',
+        keep_ratio=True),
+    dict(type='RandomFlip', flip_ratio=0.5),
+    dict(type='Normalize', **img_norm_cfg),
+    dict(type='Pad', size_divisor=32),
+    dict(type='DefaultFormatBundle'),
+    dict(type='Collect', keys=['img','proposals', 'gt_bboxes', 'gt_labels', 'gt_masks']),
+]
+data = dict(train=dict(dataset=dict(pipeline=train_pipeline)))
+# fp16 = dict(loss_scale=512.)
