@@ -29,9 +29,9 @@ Download dataset according to [LVIS](https://www.lvisdataset.org/) [VOC](http://
 
 ```
 # Main Results
-| Model | Lr Schd | Box AP &nbsp;&nbsp;&nbsp;| Mask AP | Config | Prompt | Model |
+| Model | Lr Schd | Box AP &nbsp;&nbsp;&nbsp;| Mask AP &nbsp;&nbsp;&nbsp; | Config | Prompt | Model |
 | ---- | ---- | ---- | ------- | ---- | ---- | ---- |
-| detpro | 20e | 20.8 27.8 32.4 28.4 &nbsp;&nbsp;&nbsp;| [config](https://github.com/dyabel/detpro/blob/main/configs/lvis/detpro_ens_2x.py) | [model\  |
+| detpro | 20e | 20.8 27.8 32.4 28.4 &nbsp;&nbsp;&nbsp;| 19.8 25.6 28.9 25.9 &nbsp;&nbsp;&nbsp;|[config](https://github.com/dyabel/detpro/blob/main/configs/lvis/detpro_ens_2x.py) | [prompt]()|[model]()  |
 
 
 
