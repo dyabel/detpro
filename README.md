@@ -31,7 +31,7 @@ Download dataset according to [LVIS](https://www.lvisdataset.org/) [VOC](http://
 # Main Results
 | Model | Lr Schd | Box AP &nbsp;&nbsp;&nbsp;| Mask AP &nbsp;&nbsp;&nbsp; | Config | Prompt | Model |
 | ---- | ---- | ---- | ------- | ---- | ---- | ---- |
-| Vild * | 20e | 17.4 27.5 31.9 27.5 &nbsp;&nbsp;&nbsp;| 16.8 25.6 28.5 25.2 &nbsp;&nbsp;&nbsp;|[config](https://github.com/dyabel/detpro/blob/main/configs/lvis/detpro_ens_2x.py) | [prompt]()|[model]()  |
+| Vild * | 20e | 17.4 27.5 31.9 27.5 &nbsp;&nbsp;&nbsp;| 16.8 25.6 28.5 25.2 &nbsp;&nbsp;&nbsp;|[config](https://github.com/dyabel/detpro/blob/main/configs/lvis/detpro_ens_2x.py) | [prompt](https://cloud.tsinghua.edu.cn/f/3f9017c3e217496ebc25/?dl=1)|[model](https://cloud.tsinghua.edu.cn/f/d57e11e2ebf24d509218/?dl=1)  |
 | detpro | 20e | 20.8 27.8 32.4 28.4 &nbsp;&nbsp;&nbsp;| 19.8 25.6 28.9 25.9 &nbsp;&nbsp;&nbsp;|[config](https://github.com/dyabel/detpro/blob/main/configs/lvis/detpro_ens_2x.py) | [prompt](https://cloud.tsinghua.edu.cn/f/0fceb9cae4c249188170/?dl=1)|[model](https://cloud.tsinghua.edu.cn/f/91cecd9ef97843339c79/?dl=1)|
 | detpro + cascade | 20e | 21.6 29.8 35.1 30.5 &nbsp;&nbsp;&nbsp;| 19.8 26.8 30.3 26.9 &nbsp;&nbsp;&nbsp;|[config](https://github.com/dyabel/detpro/blob/main/configs/lvis/cascade_mask_rcnn_r50_fpn_sample1e-3_mstrain_1x_lvis_v1_pretrain_ens.py) | [prompt](https://cloud.tsinghua.edu.cn/f/0fceb9cae4c249188170/?dl=1)|[model](https://cloud.tsinghua.edu.cn/f/f75712011cd342bdb49e/?dl=1)  |
 # Installation
