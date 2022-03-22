@@ -29,9 +29,9 @@ All models use the backbone pretrained with [SoCo](https://github.com/hologerry/
 # Main Results
 | Model                  | Lr Schd   | AP<sup>bb</sup><sub>r</sub> | AP<sup>bb</sup><sub>c</sub> | AP<sup>bb</sup><sub>f</sub> | AP<sup>bb</sup> | AP<sup>mk</sup><sub>r</sub> | AP<sup>mk</sup><sub>c</sub>| AP<sup>mk</sup><sub>f</sub> | AP<sup>mk</sup> | Config | Prompt | Model |
 | ---------------------- | --------- | ---- | ---- | ---- | ---- | ------- | ---- | ---- | ---- | ------ | ------ | ----- |
-| ViLD                   | 20 epochs | 17.4 | 27.5 | 31.9 | 27.5 | 16.8 | 25.6 | 28.5 | 25.2 | [config](https://github.com/dyabel/detpro/blob/main/configs/lvis/detpro_ens_2x.py) |  [prompt](https://cloud.tsinghua.edu.cn/f/3f9017c3e217496ebc25/?dl=1) | [model](https://cloud.tsinghua.edu.cn/f/d57e11e2ebf24d509218/?dl=1)      |
-| DetPro (Mask R-CNN)    | 20 epochs | 20.8 | 27.8 | 32.4 | 28.4 | 19.8 | 25.6 | 28.9 | 25.9 | [config](https://github.com/dyabel/detpro/blob/main/configs/lvis/detpro_ens_2x.py) | [prompt](https://cloud.tsinghua.edu.cn/f/0fceb9cae4c249188170/?dl=1) | [model](https://cloud.tsinghua.edu.cn/f/91cecd9ef97843339c79/?dl=1) |
-| DetPro (Cascade R-CNN) | 20 epochs | 21.6 | 29.8 | 35.1 | 30.5 | 19.8 | 26.8 | 30.3 | 26.9 | [config](https://github.com/dyabel/detpro/blob/main/configs/lvis/cascade_mask_rcnn_r50_fpn_sample1e-3_mstrain_1x_lvis_v1_pretrain_ens.py) | [prompt](https://cloud.tsinghua.edu.cn/f/0fceb9cae4c249188170/?dl=1) | [model](https://cloud.tsinghua.edu.cn/f/f75712011cd342bdb49e/?dl=1) |
+| ViLD                   | 20 epochs | 17.4 | 27.5 | 31.9 | 27.5 | 16.8 | 25.6 | 28.5 | 25.2 | [config](https://github.com/dyabel/detpro/blob/main/configs/lvis/detpro_ens_20e.py) |  [prompt](https://cloud.tsinghua.edu.cn/f/3f9017c3e217496ebc25/?dl=1) | [model](https://cloud.tsinghua.edu.cn/f/d57e11e2ebf24d509218/?dl=1)      |
+| DetPro (Mask R-CNN)    | 20 epochs | 20.8 | 27.8 | 32.4 | 28.4 | 19.8 | 25.6 | 28.9 | 25.9 | [config](https://github.com/dyabel/detpro/blob/main/configs/lvis/detpro_ens_20e.py) | [prompt](https://cloud.tsinghua.edu.cn/f/0fceb9cae4c249188170/?dl=1) | [model](https://cloud.tsinghua.edu.cn/f/91cecd9ef97843339c79/?dl=1) |
+| DetPro (Cascade R-CNN) | 20 epochs | 21.6 | 29.8 | 35.1 | 30.5 | 19.8 | 26.8 | 30.3 | 26.9 | [config](https://github.com/dyabel/detpro/blob/main/configs/lvis/cascade_mask_rcnn_r50_fpn_sample1e-3_mstrain_20e_lvis_v1_pretrain_ens.py) | [prompt](https://cloud.tsinghua.edu.cn/f/0fceb9cae4c249188170/?dl=1) | [model](https://cloud.tsinghua.edu.cn/f/f75712011cd342bdb49e/?dl=1) |
 # Installation
 This repo is built on [mmdetection](https://github.com/open-mmlab/mmdetection), [CLIP](https://github.com/openai/CLIP.git) and [CoOP](https://github.com/kaiyangzhou/coop)
 
@@ -64,10 +64,10 @@ python prompt/run.py test data/lvis_clip_image_proposal_embedding/train data/lvi
 ## Train ViLD with DetPro (Mask R-CNN)
 ```
 #save the embeddings of precomputed proposals encoded by the clip image encoder for reuse，this will take a long time.
-./tools/dist_train.sh  configs/lvis/detpro_ens_2x.py 8 --work-dir workdirs/vild_ens_2x_fg_bg_5_10_end --cfg-options model.roi_head.prompt_path=checkpoints/exp/fg_bg_5_10_end_ens.pth model.roi_head.load_feature=False totol_epochs=1
+./tools/dist_train.sh  configs/lvis/detpro_ens_20e.py 8 --work-dir workdirs/vild_ens_20e_fg_bg_5_10_end --cfg-options model.roi_head.prompt_path=checkpoints/exp/fg_bg_5_10_end_ens.pth model.roi_head.load_feature=False totol_epochs=1
 #compress the embeddings into a zip file
 zip -r lvis_clip_image_embedding.zip data/lvis_clip_image_embedding/*
-./tools/dist_train.sh  configs/lvis/detpro_ens_2x.py 8 --work-dir workdirs/vild_ens_2x_fg_bg_5_10_end --cfg-options model.roi_head.prompt_path=checkpoints/exp/fg_bg_5_10_end_ens.pth model.roi_head.load_feature=True
+./tools/dist_train.sh  configs/lvis/detpro_ens_20e.py 8 --work-dir workdirs/vild_ens_20e_fg_bg_5_10_end --cfg-options model.roi_head.prompt_path=checkpoints/exp/fg_bg_5_10_end_ens.pth model.roi_head.load_feature=True
 ```
 ## Generate class embeddings for tranfer datasets (take Objects365 as example)
 ```
@@ -80,8 +80,8 @@ python prompt/run.py test data/lvis_clip_image_proposal_embedding/train data/lvi
 ```
 ## Transfer to Pascal VOC, COCO and Objects365
 ```
-./tools/dist_test.sh  configs/transfer/transfer_voc.py workdirs/vild_ens_2x_fg_bg_5_10_end/epoch_20.pth 8 --eval mAP --cfg-options model.roi_head.load_feature=False model.roi_head.prompt_path=checkpoints/voc/fg_bg_5_10_voc_ens.pth model.roi_head.fixed_lambda=0.6
-./tools/dist_test.sh  configs/transfer/transfer_coco.py workdirs/vild_ens_2x_fg_bg_5_10_end/epoch_20.pth 8 --eval bbox --cfg-options model.roi_head.load_feature=False model.roi_head.prompt_path=checkpoints/coco/fg_bg_5_10_voc_ens.pth model.roi_head.fixed_lambda=0.6
-./tools/dist_test.sh  configs/transfer/transfer_objects365.py workdirs/vild_ens_2x_fg_bg_5_10_end/epoch_20.pth 8 --eval bbox --cfg-options model.roi_head.load_feature=False model.roi_head.prompt_path=checkpoints/obj365/fg_bg_5_10_obj365_ens.pth model.roi_head.fixed_lambda=0.6
+./tools/dist_test.sh  configs/transfer/transfer_voc.py workdirs/vild_ens_20e_fg_bg_5_10_end/epoch_20.pth 8 --eval mAP --cfg-options model.roi_head.load_feature=False model.roi_head.prompt_path=checkpoints/voc/fg_bg_5_10_voc_ens.pth model.roi_head.fixed_lambda=0.6
+./tools/dist_test.sh  configs/transfer/transfer_coco.py workdirs/vild_ens_20e_fg_bg_5_10_end/epoch_20.pth 8 --eval bbox --cfg-options model.roi_head.load_feature=False model.roi_head.prompt_path=checkpoints/coco/fg_bg_5_10_voc_ens.pth model.roi_head.fixed_lambda=0.6
+./tools/dist_test.sh  configs/transfer/transfer_objects365.py workdirs/vild_ens_20e_fg_bg_5_10_end/epoch_20.pth 8 --eval bbox --cfg-options model.roi_head.load_feature=False model.roi_head.prompt_path=checkpoints/obj365/fg_bg_5_10_obj365_ens.pth model.roi_head.fixed_lambda=0.6
 ```
 # Citation
