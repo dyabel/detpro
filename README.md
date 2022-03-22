@@ -25,7 +25,7 @@ Download dataset according to [LVIS](https://www.lvisdataset.org/), [VOC](http:/
 │   │   ├── val
 
 ```
-We also use the backbone pretrained with [SoCo](https://github.com/hologerry/SoCo) which can be downloaded [here](https://cloud.tsinghua.edu.cn/f/9faa344e688e41619e92/?dl=1). Put the pretrained backbone under the project root dir.
+All models use the backbone pretrained with [SoCo](https://github.com/hologerry/SoCo) which can be downloaded [here](https://cloud.tsinghua.edu.cn/f/9faa344e688e41619e92/?dl=1). Put the pretrained backbone under the project root dir.
 # Main Results
 | Model                  | Lr Schd   | AP<sup>bb</sup><sub>r</sub> | AP<sup>bb</sup><sub>c</sub> | AP<sup>bb</sup><sub>f</sub> | AP<sup>bb</sup> | AP<sup>mk</sup><sub>r</sub> | AP<sup>mk</sup><sub>c</sub>| AP<sup>mk</sup><sub>f</sub> | AP<sup>mk</sup> | Config | Prompt | Model |
 | ---------------------- | --------- | ---- | ---- | ---- | ---- | ------- | ---- | ---- | ---- | ------ | ------ | ----- |
