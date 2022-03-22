@@ -1,7 +1,7 @@
 This is the code base for CVPR2022 paper "**Learning to Prompt for Open-Vocabulary Object Detection with Vision-Language Model**"
 
 # Prepare data
-Download dataset according to [LVIS](https://www.lvisdataset.org/) [VOC](http://host.robots.ox.ac.uk/pascal/VOC/) [COCO](https://cocodataset.org/#home) [Objects365](https://www.objects365.org/overview.html). It is recommended to download and extract the dataset somewhere outside the project directory and symlink the dataset root to data as below
+Download dataset according to [LVIS](https://www.lvisdataset.org/), [VOC](http://host.robots.ox.ac.uk/pascal/VOC/), [COCO](https://cocodataset.org/#home) and [Objects365](https://www.objects365.org/overview.html). It is recommended to download and extract the dataset somewhere outside the project directory and symlink the dataset root to data as below
 ```
 ├── mmdet
 ├── tools
@@ -28,13 +28,13 @@ Download dataset according to [LVIS](https://www.lvisdataset.org/) [VOC](http://
 
 ```
 # Main Results
-| Model | Lr Schd | Box AP &nbsp;&nbsp;&nbsp;| Mask AP &nbsp;&nbsp;&nbsp; | Config | Prompt | Model |
-| ---- | ---- | ---- | -- | -- | -- | -- | ---- | ---- | ---- |
-| Vild | 20 epochs | 17.4 | 27.5 |31.9 |27.5 | &nbsp;&nbsp;&nbsp;| 16.8 25.6 28.5 25.2 &nbsp;&nbsp;&nbsp;|[config](https://github.com/dyabel/detpro/blob/main/configs/lvis/detpro_ens_2x.py) | [prompt](https://cloud.tsinghua.edu.cn/f/3f9017c3e217496ebc25/?dl=1)|[model](https://cloud.tsinghua.edu.cn/f/d57e11e2ebf24d509218/?dl=1)  |
-| DetPro (Mask R-CNN) | 20 epochs | 20.8 27.8 32.4 28.4 &nbsp;&nbsp;&nbsp;| 19.8 25.6 28.9 25.9 &nbsp;&nbsp;&nbsp;|[config](https://github.com/dyabel/detpro/blob/main/configs/lvis/detpro_ens_2x.py) | [prompt](https://cloud.tsinghua.edu.cn/f/0fceb9cae4c249188170/?dl=1)|[model](https://cloud.tsinghua.edu.cn/f/91cecd9ef97843339c79/?dl=1)|
-| DetPro (Cascade R-CNN) | 20 epochs | 21.6 29.8 35.1 30.5 &nbsp;&nbsp;&nbsp;| 19.8 26.8 30.3 26.9 &nbsp;&nbsp;&nbsp;|[config](https://github.com/dyabel/detpro/blob/main/configs/lvis/cascade_mask_rcnn_r50_fpn_sample1e-3_mstrain_1x_lvis_v1_pretrain_ens.py) | [prompt](https://cloud.tsinghua.edu.cn/f/0fceb9cae4c249188170/?dl=1)|[model](https://cloud.tsinghua.edu.cn/f/f75712011cd342bdb49e/?dl=1)  |
+| Model                  | Lr Schd   | AP<sup>bb</sup><sub>r</sub> | AP<sup>bb</sup><sub>c</sub> | AP<sup>bb</sup><sub>f</sub> | AP<sup>bb</sup> | AP<sup>mk</sup><sub>r</sub> | AP<sup>mk</sup><sub>c</sub>| AP<sup>mk</sup><sub>f</sub> | AP<sup>mk</sup> | Config | Prompt | Model |
+| ---------------------- | --------- | ---- | ---- | ---- | ---- | ------- | ---- | ---- | ---- | ------ | ------ | ----- |
+| ViLD                   | 20 epochs | 17.4 | 27.5 | 31.9 | 27.5 | 16.8 | 25.6 | 28.5 | 25.2 | [config](https://github.com/dyabel/detpro/blob/main/configs/lvis/detpro_ens_2x.py) |  [prompt](https://cloud.tsinghua.edu.cn/f/3f9017c3e217496ebc25/?dl=1) | [model](https://cloud.tsinghua.edu.cn/f/d57e11e2ebf24d509218/?dl=1)      |
+| DetPro (Mask R-CNN)    | 20 epochs | 20.8 | 27.8 | 32.4 | 28.4 | 19.8 | 25.6 | 28.9 | 25.9 | [config](https://github.com/dyabel/detpro/blob/main/configs/lvis/detpro_ens_2x.py) | [prompt](https://cloud.tsinghua.edu.cn/f/0fceb9cae4c249188170/?dl=1) | [model](https://cloud.tsinghua.edu.cn/f/91cecd9ef97843339c79/?dl=1) |
+| DetPro (Cascade R-CNN) | 20 epochs | 21.6 | 29.8 | 35.1 | 30.5 | 19.8 | 26.8 | 30.3 | 26.9 | [config](https://github.com/dyabel/detpro/blob/main/configs/lvis/cascade_mask_rcnn_r50_fpn_sample1e-3_mstrain_1x_lvis_v1_pretrain_ens.py) | [prompt](https://cloud.tsinghua.edu.cn/f/0fceb9cae4c249188170/?dl=1) | [model](https://cloud.tsinghua.edu.cn/f/f75712011cd342bdb49e/?dl=1) |
 # Installation
-This repo is built on [mmdetection](https://github.com/open-mmlab/mmdetection) and [CoOP](https://github.com/kaiyangzhou/coop)
+This repo is built on [mmdetection](https://github.com/open-mmlab/mmdetection), [CLIP](https://github.com/openai/CLIP.git) and [CoOP](https://github.com/kaiyangzhou/coop)
 
 ```shell
 pip install -r requirements/build.txt
@@ -70,7 +70,7 @@ python run.py test data/lvis_clip_image_proposal_embedding/train data/lvis_clip_
 zip -r lvis_clip_image_embedding.zip data/lvis_clip_image_embedding/*
 ./tools/dist_train.sh  configs/lvis/detpro_ens_2x.py 8 --work-dir workdirs/vild_ens_2x_fg_bg_5_10_end --cfg-options model.roi_head.prompt_path=checkpoints/exp/fg_bg_5_10_end_ens.pth model.roi_head.load_feature=True
 ```
-## Generate class embedding for tranfer Datasets (take objects365 as example)
+## Generate class embeddings for tranfer datasets (take objects365 as example)
 ```
 python gen_cls_embedding.py checkpoints/exp/fg_bg_5_5_6_endepoch6_prompt.pth checkpoints/obj365/fg_bg_5_5_6_obj365 obj365
 python gen_cls_embedding.py checkpoints/exp/fg_bg_5_6_7_endepoch6_prompt.pth checkpoints/obj365/fg_bg_5_5_6_obj365 obj365
