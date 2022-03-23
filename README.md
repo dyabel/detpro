@@ -58,6 +58,6 @@ see [prepare.sh](https://github.com/dyabel/detpro/blob/main/prepare.sh)
 see [detpro.sh](https://github.com/dyabel/detpro/blob/main/detpro.sh)
 ## Train ViLD with DetPro (Mask R-CNN)
 see [vild_detpro.sh](https://github.com/dyabel/detpro/blob/main/vild_detpro.sh)
-## Tranfer Experiments
+## Tranfer experiments
 see [transer.sh](https://github.com/dyabel/detpro/blob/main/transfer.sh)
 # Citation
