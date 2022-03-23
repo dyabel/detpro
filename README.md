@@ -49,11 +49,11 @@ pip install mmcv-full==1.2.5 -f https://download.openmmlab.com/mmcv/dist/cu110/t
 ```
 # Get Started
 ## Prepare data for DetPro training
-see prepare.sh
+see [prepare.sh](https://github.com/dyabel/detpro/blob/main/prepare.sh)
 ## Train DetPro
-see detpro.sh
+see [detpro.sh](https://github.com/dyabel/detpro/blob/main/detpro.sh)
 ## Train ViLD with DetPro (Mask R-CNN)
-see vild_detpro.sh
+see [vild_detpro.sh](https://github.com/dyabel/detpro/blob/main/vild_detpro.sh)
 ## Tranfer Experiments
-see transer.sh
+see [transer.sh](https://github.com/dyabel/detpro/blob/main/transfer.sh)
 # Citation
