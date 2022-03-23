@@ -103,10 +103,9 @@ venv.bak/
 # mypy
 .mypy_cache/
 
-data/
-CLIP/
 data
-workdirs/
+CLIP/
+workdirs
 .history
 .vscode
 .idea
