@@ -48,7 +48,7 @@ pip install git+https://github.com/lvis-dataset/lvis-api.git
 pip install mmcv-full==1.2.5 -f https://download.openmmlab.com/mmcv/dist/cu110/torch1.7.0/index.html
 ```
 # Get Started
-## Quick replication of the main results
+## Quick reproduction of the main results
 ```
 ./tools/dist_test.sh <config> <model> <gpu_num> --eval bbox segm --cfg-options model.roi_head.load_feature=False
 ```
