@@ -32,6 +32,7 @@ All models use the backbone pretrained with [SoCo](https://github.com/hologerry/
 | ViLD*                   | 20 epochs | 17.4 | 27.5 | 31.9 | 27.5 | 16.8 | 25.6 | 28.5 | 25.2 | [config](https://github.com/dyabel/detpro/blob/main/configs/lvis/detpro_ens_20e.py) |  [prompt](https://cloud.tsinghua.edu.cn/f/3f9017c3e217496ebc25/?dl=1) | [model](https://cloud.tsinghua.edu.cn/f/d57e11e2ebf24d509218/?dl=1)      |
 | DetPro (Mask R-CNN)    | 20 epochs | 20.8 | 27.8 | 32.4 | 28.4 | 19.8 | 25.6 | 28.9 | 25.9 | [config](https://github.com/dyabel/detpro/blob/main/configs/lvis/detpro_ens_20e.py) | [prompt](https://cloud.tsinghua.edu.cn/f/0fceb9cae4c249188170/?dl=1) | [model](https://cloud.tsinghua.edu.cn/f/91cecd9ef97843339c79/?dl=1) |
 | DetPro (Cascade R-CNN) | 20 epochs | 21.6 | 29.8 | 35.1 | 30.5 | 19.8 | 26.8 | 30.3 | 26.9 | [config](https://github.com/dyabel/detpro/blob/main/configs/lvis/cascade_mask_rcnn_r50_fpn_sample1e-3_mstrain_20e_lvis_v1_pretrain_ens.py) | [prompt](https://cloud.tsinghua.edu.cn/f/0fceb9cae4c249188170/?dl=1) | [model](https://cloud.tsinghua.edu.cn/f/f75712011cd342bdb49e/?dl=1) | 
+
 In the original implementation of ViLD, the whole training process takes up to 180,000 iterations with batchsize of 256, approximately 460 epochs, which is un-
 affordable. We re-implement ViLD (denoted as ViLD*) with backbone pretrained using [SoCo](https://github.com/hologerry/SoCo). Our re-implementation version achieves comparable AP compared with the original implementation, while reducing the training epochs from 460 to 20.
 # Installation
