@@ -12,6 +12,7 @@ from .standard_roi_head_collect import StandardRoIHeadCol
 
 from .standard_roi_head_prompt import StandardRoIHeadPrompt
 from .standard_roi_head_save_proposal import StandardRoIHeadSaveProposal
+from .cascade_roi_head import CascadeRoIHead
 
 __all__ = [
     'BaseRoIHead',  
@@ -21,5 +22,5 @@ __all__ = [
     'HTCMaskHead', 'FusedSemanticHead', 'GridHead', 'MaskIoUHead',
     'SingleRoIExtractor',   'MaskPointHead',
     'CoarseMaskHead',  'StandardRoIHeadTEXT','StandardRoIHeadCol',
-    'StandardRoIHeadTEXTPrompt','StandardRoIHeadPrompt','StandardRoIHeadSaveProposal'
+    'StandardRoIHeadTEXTPrompt','StandardRoIHeadPrompt','StandardRoIHeadSaveProposal','CascadeRoIHead'
 ]
