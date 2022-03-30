@@ -104,7 +104,7 @@ model = dict(
         #     loss_cls=dict(
         #         type='CrossEntropyLoss', use_sigmoid=False, loss_weight=1.0),
         #     loss_bbox=dict(type='L1Loss', loss_weight=1.0)),
-        mask_head=dict(num_classes=1203)))
+        mask_head=dict(num_classes=1203,class_agnostic=True)))
 # train_cfg = dict(
 #     rpn_proposal=dict(
 #         nms_across_levels=False,
