@@ -7,6 +7,6 @@ total_epochs = 1
 
 # model = dict(roi_head=dict(save_feature_dir='./data/lvis_test_iou/train'))
 model = dict(roi_head=dict(
-    type='StandardRoIHeadSaveProposal',
+    type='StandardRoIHeadCol',
     save_feature_dir='./data/lvis_clip_image_proposal_embedding/train'))
 # model = dict(roi_head=dict(save_feature_dir='data/LVIS_prompt_train/train'))

@@ -6,7 +6,7 @@ load_from = 'current_mmdetection_Head.pth'
 total_epochs = 1
 
 model = dict(roi_head=dict(
-    type='StandardRoIHeadSaveProposal',
+    type='StandardRoIHeadCol',
     save_feature_dir='./data/lvis_clip_image_proposal_embedding/val'))
 
 data_root = 'data/lvis_v1/'

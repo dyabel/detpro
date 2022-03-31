@@ -43,7 +43,8 @@ class StandardRoIHeadCol(BaseRoIHead, BBoxTestMixin, MaskTestMixin):
                  shared_head=None,
                  train_cfg=None,
                  test_cfg=None,
-                 load_feature=True,
+                 load_feature=False,
+                 save_feature_dir=None,
                  ):
         super(StandardRoIHeadCol, self).__init__(bbox_roi_extractor=bbox_roi_extractor,
                                               bbox_head=bbox_head,
@@ -131,6 +132,7 @@ class StandardRoIHeadCol(BaseRoIHead, BBoxTestMixin, MaskTestMixin):
         self.temperature = 0.01
         self.accuracy_align = []
         self.accuracy = []
+        self.feature_save_dir = save_feature_dir
         # self.trans_to_pil = ToPILImage()
         self.color_type = 'color'
         self.file_client = mmcv.FileClient(backend='disk')
@@ -454,8 +456,10 @@ class StandardRoIHeadCol(BaseRoIHead, BBoxTestMixin, MaskTestMixin):
                 clip_image_features_ensemble = torch.cat([clip_image_features_ensemble_proposal[valid],clip_image_features_ensemble_gt],0)
             else: 
                 clip_image_features_ensemble = clip_image_features_ensemble_proposal[valid]
-
-            save_path = os.path.join('./data/lvis_clip_image_proposal_embedding_val', img_metas[0]['ori_filename'].split('.')[0] + '.pth')
+            if self.feature_save_dir is None:
+                save_path = os.path.join('./data/lvis_clip_image_proposal_embedding_val', img_metas[0]['ori_filename'].split('.')[0] + '.pth')
+            else:
+                save_path = os.path.join(save_path, img_metas[0]['ori_filename'].split('.')[0] + '.pth')
             self.checkdir(save_path)
             torch.save((clip_image_features_ensemble.cpu(), label.cpu(), iou.cpu()), save_path)
 
