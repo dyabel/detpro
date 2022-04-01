@@ -35,6 +35,11 @@ All models use the backbone pretrained with [SoCo](https://github.com/hologerry/
 
 In the original implementation of ViLD, the whole training process takes up to 180,000 iterations with batchsize of 256, approximately 460 epochs, which is unaffordable. We re-implement ViLD (denoted as ViLD*) with backbone pretrained using [SoCo](https://github.com/hologerry/SoCo). Our re-implementation version achieves comparable AP compared with the original implementation, while reducing the training epochs from 460 to 20.
 # Installation
+## Dependencies
++ python3.8
++ pytorch 1.7.0
++ cuda 11.0
+
 This repo is built on [mmdetection](https://github.com/open-mmlab/mmdetection), [CLIP](https://github.com/openai/CLIP.git) and [CoOP](https://github.com/kaiyangzhou/coop)
 
 ```shell

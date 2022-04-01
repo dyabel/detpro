@@ -19,6 +19,7 @@ print('total', len(files), 'files')
 
 for pth in files:
     feat, label, iou = torch.load(pth)
+    print(len(feat), len(label),len(iou))
     iou = torch.cat([iou, iou.new_ones(len(label) - len(iou))]) # fix a bug in collect iou
     feats.append(feat)
     labels.append(label)

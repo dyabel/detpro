@@ -440,7 +440,7 @@ class StandardRoIHeadCol(BaseRoIHead, BBoxTestMixin, MaskTestMixin):
 
             proposal = bbox2roi([gt_bboxes[i]])
             label = torch.cat([label, gt_labels[i]])
-            iou = torch.cat([iou, iou.new_ones(len(gt_bboxes))])
+            iou = torch.cat([iou, iou.new_ones(len(gt_bboxes[i]))])
 
             proposal15 = self.boxto15(proposal)
             save_path = os.path.join('./testbed/', img_metas[i]['ori_filename'].split('.')[0] + "_crop")
@@ -459,7 +459,7 @@ class StandardRoIHeadCol(BaseRoIHead, BBoxTestMixin, MaskTestMixin):
             if self.feature_save_dir is None:
                 save_path = os.path.join('./data/lvis_clip_image_proposal_embedding_val', img_metas[0]['ori_filename'].split('.')[0] + '.pth')
             else:
-                save_path = os.path.join(save_path, img_metas[0]['ori_filename'].split('.')[0] + '.pth')
+                save_path = os.path.join(self.feature_save_dir, img_metas[0]['ori_filename'].split('.')[0] + '.pth')
             self.checkdir(save_path)
             torch.save((clip_image_features_ensemble.cpu(), label.cpu(), iou.cpu()), save_path)
 

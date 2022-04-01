@@ -750,8 +750,8 @@ class LVISV1Dataset(LVISDataset):
                 cnt += 1
                 rare_cls_img_ids.extend(self.coco.cat_img_map[cat])
             self.img_ids = np.unique(rare_cls_img_ids).tolist()
-        self.img_ids = self.img_ids[:200]
         """
+        self.img_ids = self.img_ids[:200]
         #-----------------------------------------------------
         data_infos = []
         for i in self.img_ids:
