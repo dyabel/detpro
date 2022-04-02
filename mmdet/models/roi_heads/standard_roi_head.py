@@ -505,7 +505,8 @@ class StandardRoIHead(BaseRoIHead, BBoxTestMixin, MaskTestMixin):
                 if self.num_classes == 1203:
                     save_path = os.path.join('lvis_clip_image_embedding.zip/data/lvis_clip_image_embedding', img_metas[i]['ori_filename'].split('.')[0] + '.pth')
                 elif self.num_classes == 80:
-                    save_path = os.path.join('coco_clip_image_embedding.zip/data/coco_clip_image_embedding', img_metas[i]['ori_filename'].split('.')[0] + '.pth')
+                    # save_path = os.path.join('lvis_clip_image_embedding.zip/data/lvis_clip_image_embedding/train2017', img_metas[i]['ori_filename'].split('.')[0] + '.pth')
+                    save_path = os.path.join('coco_clip_image_embedding.zip/data/coco_clip_image_embedding/', img_metas[i]['ori_filename'].split('.')[0] + '.pth')
                 try:
                     f = self.zipfile.get(save_path)
                     stream = io.BytesIO(f)
@@ -540,13 +541,13 @@ class StandardRoIHead(BaseRoIHead, BBoxTestMixin, MaskTestMixin):
                 if self.num_classes == 1203:
                     save_path = os.path.join('./data/lvis_clip_image_embedding', img_metas[i]['ori_filename'].split('.')[0] + '.pth')
                 elif self.num_classes == 80:
-                    save_path = os.path.join('./data/coco_clip_image_embedding', img_metas[i]['ori_filename'].split('.')[0] + '.pth')
+                    save_path = os.path.join('./data/coco_clip_image_embedding_ori_forward', img_metas[i]['ori_filename'].split('.')[0] + '.pth')
                 self.checkdir(save_path)
-                clip_image_features = self.img2pil2feat(img_no_normalize[i], bboxes_single_image[:,1:])
-                clip_image_features15 = self.img2pil2feat(img_no_normalize[i], bboxes15[:,1:])
+                # clip_image_features = self.img2pil2feat(img_no_normalize[i], bboxes_single_image[:,1:])
+                # clip_image_features15 = self.img2pil2feat(img_no_normalize[i], bboxes15[:,1:])
 
-                # clip_image_features = self.clip_image_forward((img_metas[i],), bboxes_single_image, (num_proposals_per_img[i],))
-                # clip_image_features15 = self.clip_image_forward((img_metas[i],), bboxes15,(num_proposals_per_img[i],),True)
+                clip_image_features = self.clip_image_forward((img_metas[i],), bboxes_single_image, (num_proposals_per_img[i],))
+                clip_image_features15 = self.clip_image_forward((img_metas[i],), bboxes15,(num_proposals_per_img[i],),True)
 
                 # clip_image_features_align = self.clip_image_forward_align(img, bboxes,(num_proposals_per_img[i],))
                 # clip_image_features15_align = self.clip_image_forward_align(img, bboxes15,(num_proposals_per_img[i],))
@@ -806,21 +807,21 @@ class StandardRoIHead(BaseRoIHead, BBoxTestMixin, MaskTestMixin):
                 # clip_image_features_ensemble_img2pil = clip_image_features_ensemble_img2pil.float()
                 # clip_image_features_ensemble_img2pil = F.normalize(clip_image_features_ensemble_img2pil,p=2,dim=1)
 
-                clip_image_features = self.clip_image_forward(img_metas,bboxes,num_proposals_per_img)
-                clip_image_features15 = self.clip_image_forward(img_metas, bboxes15, num_proposals_per_img)
-                clip_image_features_ensemble = clip_image_features + clip_image_features15
-                clip_image_features_ensemble = clip_image_features_ensemble.float()
-                clip_image_features_ensemble = F.normalize(clip_image_features_ensemble,p=2,dim=1)
+                # clip_image_features = self.clip_image_forward(img_metas,bboxes,num_proposals_per_img)
+                # clip_image_features15 = self.clip_image_forward(img_metas, bboxes15, num_proposals_per_img)
+                # clip_image_features_ensemble = clip_image_features + clip_image_features15
+                # clip_image_features_ensemble = clip_image_features_ensemble.float()
+                # clip_image_features_ensemble = F.normalize(clip_image_features_ensemble,p=2,dim=1)
 
-                # clip_image_features_align = self.clip_image_forward_align(img,bboxes,num_proposals_per_img)
-                # clip_image_features15_align = self.clip_image_forward_align(img, bboxes15, num_proposals_per_img)
-                # clip_image_features_ensemble_align = clip_image_features_align + clip_image_features15_align
-                # clip_image_features_ensemble_align = clip_image_features_ensemble_align.float()
-                # clip_image_features_ensemble_align = F.normalize(clip_image_features_ensemble_align,p=2,dim=1)
+                clip_image_features_align = self.clip_image_forward_align(img,bboxes,num_proposals_per_img)
+                clip_image_features15_align = self.clip_image_forward_align(img, bboxes15, num_proposals_per_img)
+                clip_image_features_ensemble_align = clip_image_features_align + clip_image_features15_align
+                clip_image_features_ensemble_align = clip_image_features_ensemble_align.float()
+                clip_image_features_ensemble = F.normalize(clip_image_features_ensemble_align,p=2,dim=1)
 
                 # torch.save(clip_image_features_ensemble_img2pil.cpu(), save_path)
                 self.checkdir(save_path)
-                torch.save(clip_image_features_ensemble.cpu(), save_path)
+                # torch.save(clip_image_features_ensemble.cpu(), save_path)
             else:
                 clip_image_features_ensemble = torch.load(save_path).to(self.device)
                 # clip_image_features_ensemble_img2pil = torch.load(save_path).to(self.device)
@@ -831,6 +832,8 @@ class StandardRoIHead(BaseRoIHead, BBoxTestMixin, MaskTestMixin):
             # cls_score_clip = torch.exp(cls_score_clip-1)
             # cls_score_clip = cls_score_clip/0.007
             cls_score_clip[:,-1] = -1e11
+            if self.num_classes == 80 and self.coco_setting:
+                cls_score_clip[:,self.unseen_label_ids_test] = -1e11
             cls_score_clip = cls_score_clip.softmax(dim=1)
 
             # cls_score_clip_img2pil = clip_image_features_ensemble_img2pil @ text_features.T

@@ -67,12 +67,10 @@ see [vild_detpro.sh](https://github.com/dyabel/detpro/blob/main/vild_detpro.sh)
 see [transer.sh](https://github.com/dyabel/detpro/blob/main/transfer.sh)
 # Citation
 ```
-@misc{du2022learning,
-      title={Learning to Prompt for Open-Vocabulary Object Detection with Vision-Language Model}, 
-      author={Yu Du and Fangyun Wei and Zihe Zhang and Miaojing Shi and Yue Gao and Guoqi Li},
-      year={2022},
-      eprint={2203.14940},
-      archivePrefix={arXiv},
-      primaryClass={cs.CV}
+@article{du2022learning,
+  title={Learning to Prompt for Open-Vocabulary Object Detection with Vision-Language Model},
+  author={Du, Yu and Wei, Fangyun and Zhang, Zihe and Shi, Miaojing and Gao, Yue and Li, Guoqi},
+  journal={arXiv preprint arXiv:2203.14940},
+  year={2022}
 }
 ```
