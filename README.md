@@ -25,7 +25,7 @@ Download dataset according to [LVIS](https://www.lvisdataset.org/), [VOC](http:/
 │   │   ├── val
 
 ```
-All models use the backbone pretrained with [SoCo](https://github.com/hologerry/SoCo) which can be downloaded from [google drive](https://drive.google.com/file/d/1z6Tb2MPFJDv9qpEyn_J0cJcXOguKTiL0/view?usp=sharing) [baiduyun (code:kwps)](https://pan.baidu.com/s/1FHN-9vsH16w4TAusyHnXvg). Put the pretrained backbone under the project root dir.
+All models use the backbone pretrained with [SoCo](https://github.com/hologerry/SoCo) which can be downloaded from [google drive](https://drive.google.com/file/d/1z6Tb2MPFJDv9qpEyn_J0cJcXOguKTiL0/view?usp=sharing) [baiduyun (code:kwps)](https://pan.baidu.com/s/1FHN-9vsH16w4TAusyHnXvg). Put the pretrained backbone under data/.
 # Main Results
 | Model                  | Lr Schd   | AP<sup>bb</sup><sub>r</sub> | AP<sup>bb</sup><sub>c</sub> | AP<sup>bb</sup><sub>f</sub> | AP<sup>bb</sup> | AP<sup>mk</sup><sub>r</sub> | AP<sup>mk</sup><sub>c</sub>| AP<sup>mk</sup><sub>f</sub> | AP<sup>mk</sup> | Config | Prompt | Model |
 | ---------------------- | --------- | ---- | ---- | ---- | ---- | ------- | ---- | ---- | ---- | ------ | ------ | ----- |

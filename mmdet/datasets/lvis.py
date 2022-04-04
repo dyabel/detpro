@@ -310,7 +310,7 @@ class LVISV05Dataset(CocoDataset):
                  metric='bbox',
                  logger=None,
                  jsonfile_prefix=None,
-                 classwise=False,
+                 classwise=True,
                  proposal_nums=(100, 300, 1000),
                  iou_thrs=np.arange(0.5, 0.96, 0.05)):
         """Evaluation in LVIS protocol.
@@ -421,8 +421,9 @@ class LVISV05Dataset(CocoDataset):
                     for idx, catId in enumerate(self.cat_ids):
                         # area range index 0: all area ranges
                         # max dets index -1: typically 100 per image
-                        nm = self.coco.load_cats(catId)[0]
-                        precision = precisions[:, :, idx, 0, -1]
+                        nm = self.coco.load_cats([catId])[0]
+                        precision = precisions[:, :, idx, 0]
+                        # precision = precisions[:, :, idx, 0, -1]
                         precision = precision[precision > -1]
                         if precision.size:
                             ap = np.mean(precision)
@@ -734,7 +735,7 @@ class LVISV1Dataset(LVISDataset):
                 cats[cat] = self.coco.cats[cat]
         #------------------------------------------
         self.id_idx = None
-        """
+        # """
         if  not self.test_mode:
             self.id_idx = {}
             for idx,img_id in enumerate(self.img_ids):
@@ -744,14 +745,14 @@ class LVISV1Dataset(LVISDataset):
             cnt = 0
             for cat in self.coco.cats:
                 cat_info = self.coco.cats[cat]
-                if cat_info['frequency'] != 'r':
+                if cat_info['frequency'] == 'r':
                     continue
                 cat_ids.append(cat)
                 cnt += 1
                 rare_cls_img_ids.extend(self.coco.cat_img_map[cat])
             self.img_ids = np.unique(rare_cls_img_ids).tolist()
-        """
         # self.img_ids = self.img_ids[:200]
+        # """
         #-----------------------------------------------------
         data_infos = []
         for i in self.img_ids:
@@ -851,6 +852,7 @@ class LVISV1Dataset_ALLCLS(LVISV1Dataset):
         cats = {}
         self.ignore_ids = []
         self.img_ids = self.coco.get_img_ids()
+        self.img_ids = self.img_ids[:200]
         #------------------------------------------
         self.id_idx = None
         # """

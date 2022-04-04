@@ -105,7 +105,7 @@ test_pipeline = [
             dict(type='Collect', keys=['img']),
         ])
 ]
-load_from = 'mmdetection_soco_star_400ep_mask-rcnn_lvis_1x_2x/current_mmdetection_Head.pth'
+load_from = 'data/current_mmdetection_Head.pth'
 data = dict(
     samples_per_gpu=1,
     workers_per_gpu=1,

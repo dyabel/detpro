@@ -84,7 +84,7 @@ train_pipeline = [
     dict(type='Collect', keys=['img','proposals', 'gt_bboxes', 'gt_labels']),
 ]
 
-load_from = '/home/dy20/mmdetection/workdirs/mmdetection_soco_star_400ep_mask-rcnn_lvis_1x_2x/current_mmdetection_Head.pth'
+load_from = 'data/current_mmdetection_Head.pth'
 data = dict(train=dict(dataset=dict(pipeline=train_pipeline)),
             )
 # fp16 = dict(loss_scale=512.)

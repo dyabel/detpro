@@ -66,7 +66,7 @@ test_cfg = dict(
         mask_thr_binary=0.5))
 img_norm_cfg = dict(
     mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
-load_from = '/home/dy20/mmdetection/workdirs/mmdetection_soco_star_400ep_mask-rcnn_lvis_1x_2x/current_mmdetection_Head.pth'
+load_from = 'data/current_mmdetection_Head.pth'
 # data = dict(train=dict(dataset=dict(pipeline=train_pipeline)),
             # )
 # fp16 = dict(loss_scale=512.)

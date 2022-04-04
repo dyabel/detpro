@@ -46,12 +46,12 @@ class StandardRoIHead(BaseRoIHead, BBoxTestMixin, MaskTestMixin):
                  test_cfg=None,
                  load_feature=True,
                  use_clip_inference=False,
-                 prompt=2,
                  kd_weight = 256,
                  fixed_lambda=None,
                  prompt_path=None,
                  coco_setting=False,
-                 fix_bg=False
+                 fix_bg=False,
+                 feature_path='data/lvis_clip_image_embedding.zip'
                  ):
         super(StandardRoIHead, self).__init__(bbox_roi_extractor=bbox_roi_extractor,
                                               bbox_head=bbox_head,
@@ -99,7 +99,6 @@ class StandardRoIHead(BaseRoIHead, BBoxTestMixin, MaskTestMixin):
         self.fix_bg = fix_bg
         print('load_feature',load_feature)
         print('use_clip_inference',use_clip_inference)
-        print('prompt',prompt)
         print('fixed_lambda',fixed_lambda)
         print('prompt path',prompt_path)
         self.coco_setting = coco_setting
@@ -117,25 +116,17 @@ class StandardRoIHead(BaseRoIHead, BBoxTestMixin, MaskTestMixin):
                     param.requires_grad = False
         else:
             time_start = time.time()
-            if self.num_classes == 1203:
-                self.zipfile = ZipBackend('lvis_clip_image_embedding.zip')
-            elif self.num_classes == 80:
-                self.zipfile = ZipBackend('coco_clip_image_embedding.zip')
+            self.zipfile = ZipBackend(feature_path)
+
+            # if self.num_classes == 1203:
+            #     self.zipfile = ZipBackend('lvis_clip_image_embedding.zip')
+            # elif self.num_classes == 80:
+            #     self.zipfile = ZipBackend('coco_clip_image_embedding.zip')
             print('load zip:',time.time()-time_start)
         self.text_features_for_classes = []
         self.iters = 0
         self.ensemble = bbox_head.ensemble
         print('ensemble:{}'.format(self.ensemble))
-        if prompt == 0:
-            save_path = 'neg0105_ens.pth'
-        elif prompt == 1: #repace _ as ' ' remove '('')'
-            save_path = 'lvis_text_embedding1.pth'
-        elif prompt == 2:
-            save_path = dataset + '_text_embedding.pt'
-        elif prompt == 3:
-            save_path = 'lvis_iou.pth'
-        elif prompt == 4: 
-            save_path = dataset + '_iou.pth'
         if prompt_path is not None:
             save_path = prompt_path
         print('load:',save_path)

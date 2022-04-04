@@ -12,5 +12,5 @@ model = dict(
     roi_head=dict(
         type='StandardRoIHeadCol',
         mask_head=dict(class_agnostic=True)))
-load_from = './current_mmdetection_Head.pth'
+load_from = 'data/current_mmdetection_Head.pth'
 # fp16 = dict(loss_scale=512.)
