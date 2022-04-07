@@ -432,8 +432,8 @@ class StandardRoIHeadCol(BaseRoIHead, BBoxTestMixin, MaskTestMixin):
             clip_image_features_ensemble_proposal = torch.nn.functional.normalize(clip_image_features_single, p=2, dim=1)
 
             res = self.bbox_assigner.assign(proposals_pre_computed[i], gt_bboxes[i], gt_labels=gt_labels[i])
-            valid = res.labels >= 0
-            proposal = proposals_pre_computed[i][valid]
+            valid = res.max_overlaps >= 0.1
+            # proposal = proposals_pre_computed[i][valid]
             label = res.labels[valid]
             iou = res.max_overlaps[valid]
            
