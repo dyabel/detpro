@@ -9,6 +9,7 @@ from .standard_roi_head import StandardRoIHead
 from .standard_roi_head_text import StandardRoIHeadTEXT
 from .standard_roi_head_text_prompt import StandardRoIHeadTEXTPrompt
 from .standard_roi_head_collect import StandardRoIHeadCol
+from .standard_roi_head_collect_reuse import StandardRoIHeadColReuse
 
 from .standard_roi_head_prompt import StandardRoIHeadPrompt
 from .standard_roi_head_save_proposal import StandardRoIHeadSaveProposal
@@ -21,6 +22,6 @@ __all__ = [
     'Shared4Conv1FCBBoxHead', 'DoubleConvFCBBoxHead', 'FCNMaskHead',
     'HTCMaskHead', 'FusedSemanticHead', 'GridHead', 'MaskIoUHead',
     'SingleRoIExtractor',   'MaskPointHead',
-    'CoarseMaskHead',  'StandardRoIHeadTEXT','StandardRoIHeadCol',
+    'CoarseMaskHead',  'StandardRoIHeadTEXT','StandardRoIHeadCol', 'StandardRoIHeadColReuse'
     'StandardRoIHeadTEXTPrompt','StandardRoIHeadPrompt','StandardRoIHeadSaveProposal','CascadeRoIHead'
 ]
