@@ -22,6 +22,6 @@ __all__ = [
     'Shared4Conv1FCBBoxHead', 'DoubleConvFCBBoxHead', 'FCNMaskHead',
     'HTCMaskHead', 'FusedSemanticHead', 'GridHead', 'MaskIoUHead',
     'SingleRoIExtractor',   'MaskPointHead',
-    'CoarseMaskHead',  'StandardRoIHeadTEXT','StandardRoIHeadCol', 'StandardRoIHeadColReuse'
+    'CoarseMaskHead',  'StandardRoIHeadTEXT','StandardRoIHeadCol', 'StandardRoIHeadColReuse',
     'StandardRoIHeadTEXTPrompt','StandardRoIHeadPrompt','StandardRoIHeadSaveProposal','CascadeRoIHead'
 ]
