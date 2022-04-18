@@ -129,6 +129,8 @@ class StandardRoIHead(BaseRoIHead, BBoxTestMixin, MaskTestMixin):
         print('ensemble:{}'.format(self.ensemble))
         if prompt_path is not None:
             save_path = prompt_path
+        else:
+            save_path = 'lvis_text_embedding.pt'
         print('load:',save_path)
         time_start = time.time()
         if osp.exists(save_path):
