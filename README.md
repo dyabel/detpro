@@ -59,6 +59,7 @@ pip install mmcv-full==1.2.5 -f https://download.openmmlab.com/mmcv/dist/cu110/t
 ```
 ## Prepare data for DetPro training
 see [prepare.sh](https://github.com/dyabel/detpro/blob/main/prepare.sh)
+This process will take a long time. So we also provide the extracted clip image embeddings of precomputed proposals [baiduyun (code:o4n5)](https://pan.baidu.com/s/13vp8s6mU9IKSbF-OPRtX9g). You can download all these zip files and merge them into one file (lvis_clip_image_embedding.zip).
 ## Train DetPro
 see [detpro.sh](https://github.com/dyabel/detpro/blob/main/detpro.sh)
 ## Train ViLD with DetPro (Mask R-CNN)
