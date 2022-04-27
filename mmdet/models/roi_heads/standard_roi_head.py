@@ -536,11 +536,11 @@ class StandardRoIHead(BaseRoIHead, BBoxTestMixin, MaskTestMixin):
                 elif self.num_classes == 80:
                     save_path = os.path.join('./data/coco_clip_image_embedding_ori_forward', img_metas[i]['ori_filename'].split('.')[0] + '.pth')
                 self.checkdir(save_path)
-                # clip_image_features = self.img2pil2feat(img_no_normalize[i], bboxes_single_image[:,1:])
-                # clip_image_features15 = self.img2pil2feat(img_no_normalize[i], bboxes15[:,1:])
+                clip_image_features = self.img2pil2feat(img_no_normalize[i], bboxes_single_image[:,1:])
+                clip_image_features15 = self.img2pil2feat(img_no_normalize[i], bboxes15[:,1:])
 
-                clip_image_features = self.clip_image_forward((img_metas[i],), bboxes_single_image, (num_proposals_per_img[i],))
-                clip_image_features15 = self.clip_image_forward((img_metas[i],), bboxes15,(num_proposals_per_img[i],),True)
+                # clip_image_features = self.clip_image_forward((img_metas[i],), bboxes_single_image, (num_proposals_per_img[i],))
+                # clip_image_features15 = self.clip_image_forward((img_metas[i],), bboxes15,(num_proposals_per_img[i],),True)
 
                 # clip_image_features_align = self.clip_image_forward_align(img, bboxes,(num_proposals_per_img[i],))
                 # clip_image_features15_align = self.clip_image_forward_align(img, bboxes15,(num_proposals_per_img[i],))
