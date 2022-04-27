@@ -108,7 +108,7 @@ test_pipeline = [
 ]
 
 checkpoint_config = dict(interval=1,create_symlink=False)
-# load_from = 'current_mmdetection_Head.pth'
+load_from = 'data/current_mmdetection_Head.pth'
 data = dict(
     samples_per_gpu=1,
     workers_per_gpu=1,
