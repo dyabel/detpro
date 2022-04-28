@@ -1,7 +1,7 @@
 _base_ = ['./mask_rcnn_r50_fpn_sample1e-3_mstrain_1x_lvis_v1_pretrain.py']
 
 checkpoint_config = dict(interval=2,create_symlink=False)
-load_from = 'current_mmdetection_Head.pth'
+load_from = 'data/current_mmdetection_Head.pth'
 
 total_epochs = 1
 

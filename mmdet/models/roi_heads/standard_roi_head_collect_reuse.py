@@ -207,6 +207,7 @@ class StandardRoIHeadColReuse(BaseRoIHead, BBoxTestMixin, MaskTestMixin):
     def forward_train(self,
                       x,
                       img,
+                      img_no_normalize,
                       img_metas,
                       proposal_list,
                       proposals_pre_computed,
@@ -214,7 +215,7 @@ class StandardRoIHeadColReuse(BaseRoIHead, BBoxTestMixin, MaskTestMixin):
                       gt_labels,
                       gt_bboxes_ignore=None,
                       gt_masks=None,
-                      img_no_normalize=None):
+                      ):
         """
         Args:
             x (list[Tensor]): list of multi-level img features.
@@ -302,6 +303,7 @@ class StandardRoIHeadColReuse(BaseRoIHead, BBoxTestMixin, MaskTestMixin):
             x[:self.bbox_roi_extractor.num_inputs], rois)
         if self.with_shared_head:
             bbox_feats = self.shared_head(bbox_feats)
+        print(bbox_feats.shape)
         bbox_pred = self.bbox_head(bbox_feats)
         bbox_results = dict(
             bbox_pred=bbox_pred, bbox_feats=bbox_feats)
