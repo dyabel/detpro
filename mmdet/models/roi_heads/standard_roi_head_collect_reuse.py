@@ -7,22 +7,29 @@ import torch.nn as nn
 import torch
 import clip
 import time
-import mmcv
 from mmcv.ops.roi_align import roi_align
 # from pytorch_memlab import profile,MemReporter
 import os
-from PIL import Image
-import numpy as np
+# from PIL import Image
 # from mmcv.runner import auto_fp16
 from .class_name import *
 import time
 import torch.nn.functional as F
 from torch import distributed as dist
 from .visualize import visualize_oam_boxes
-import os.path as osp
-import io 
 from .zip import ZipBackend
-
+import io
+import mmcv
+from torchvision.transforms import ToPILImage
+import numpy as np
+import os.path as osp
+from PIL import Image
+import random
+from lvis import LVIS
+from mmdet.core import (bbox2roi, bbox_mapping, merge_aug_bboxes,
+                        merge_aug_masks, multiclass_nms)
+from multiprocessing import Process
+from tqdm import tqdm
 
 @HEADS.register_module()
 class StandardRoIHeadColReuse(BaseRoIHead, BBoxTestMixin, MaskTestMixin):
@@ -36,9 +43,8 @@ class StandardRoIHeadColReuse(BaseRoIHead, BBoxTestMixin, MaskTestMixin):
                  shared_head=None,
                  train_cfg=None,
                  test_cfg=None,
-                 load_feature=False,
-                 text_embedding='lvis_text_embedding.pt',
-                 save_feature_dir='./data/lvis_clip_image_proposal_embedding/train',
+                 load_feature=True,
+                 save_feature_dir=None,
                  ):
         super(StandardRoIHeadColReuse, self).__init__(bbox_roi_extractor=bbox_roi_extractor,
                                               bbox_head=bbox_head,
@@ -56,70 +62,80 @@ class StandardRoIHeadColReuse(BaseRoIHead, BBoxTestMixin, MaskTestMixin):
         elif bbox_head.num_classes == 20:
             self.CLASSES = VOC_CLASSES
             dataset = 'voc'
-        else:
+        elif bbox_head.num_classes == 1203:
             self.CLASSES = LVIS_CLASSES
             dataset = 'lvis'
+        elif bbox_head.num_classes == 365:
+            self.CLASSES = Object365_CLASSES
+            dataset = 'objects365'
         self.num_classes = len(self.CLASSES)
         print('num_classes:',self.num_classes)
         if self.num_classes == 1203:
-            self.novel_label_ids = lvis_novel_label_ids
-            self.base_label_ids = lvis_base_label_ids
-            self.novel_label_ids = torch.tensor(self.novel_label_ids, device=device)
-            self.novel_index = torch.cat([torch.bincount(self.novel_label_ids),self.novel_label_ids.new_zeros(
-                self.num_classes - self.novel_label_ids.max(dim=0)[0])], dim=0).bool()
+            self.base_label_ids = torch.tensor(lvis_base_label_ids, device=device)
+            self.novel_label_ids = torch.tensor(lvis_novel_label_ids, device=device)
+            self.novel_index = F.pad(torch.bincount(self.novel_label_ids),(0,self.num_classes-self.novel_label_ids.max())).bool()
         elif self.num_classes == 20:
-            self.novel_label_ids = voc_novel_label_ids
-            self.novel_label_ids = torch.tensor(self.novel_label_ids, device=device)
-            self.novel_index = torch.cat(
-                [torch.bincount(self.novel_label_ids), self.novel_label_ids.new_zeros(self.num_classes - self.novel_label_ids.max(dim=0)[0])],dim=0).bool()
-        self.clip_model, self.preprocess = clip.load('ViT-B/32', device, jit=False)
-        self.clip_model.eval()
+            self.novel_label_ids = torch.tensor(voc_novel_label_ids, device=device)
+            self.novel_index = F.pad(torch.bincount(self.novel_label_ids),(0,self.num_classes-self.novel_label_ids.max())).bool()
         self.rank = dist.get_rank()
+        self.load_feature = load_feature
+        self.save_feature_dir = save_feature_dir
         # self.reporter = MemReporter(self.clip_model)
+        self.clip_model, self.preprocess = clip.load('ViT-B/32', device)
+        self.clip_model.eval()
         for child in self.clip_model.children():
             for param in child.parameters():
                 param.requires_grad = False
+        if not self.load_feature:
+            self.clip_model, self.preprocess = clip.load('ViT-B/32', device)
+            self.clip_model.eval()
+            for child in self.clip_model.children():
+                for param in child.parameters():
+                    param.requires_grad = False
+        else:
+            self.zipfile = ZipBackend('data/lvis_clip_image_embedding.zip')
         self.text_features_for_classes = []
         self.iters = 0
         self.ensemble = bbox_head.ensemble
-        self.load_feature = load_feature
-        self.zipfile = ZipBackend('data/lvis_clip_image_embedding.zip')
-
-        self.save_feature_dir = save_feature_dir
         print('ensemble:{}'.format(self.ensemble))
         save_path = dataset + '_text_embedding.pt'
         time_start = time.time()
-        if os.path.exists(save_path):
-            # if False:
-            print('load text feature')
+        if osp.exists(save_path):
             self.text_features_for_classes = torch.load(save_path).to(device)
-            # self.text_features_for_classes = torch.load(save_path, map_location={'cuda:0': 'cuda:0', 'cuda:2': 'cuda:0', 'cuda:1': 'cuda:1', 'cuda:3': 'cuda:1'}).to(device)
-            # self.text_features_for_classes = torch.load(save_path, map_location={'cuda:0': 'cuda:0', 'cuda:2': 'cuda:0', 'cuda:1': 'cuda:0', 'cuda:3': 'cuda:0'}).to(device)
         else:
-            for template in template_list:
+            self.clip_model, self.preprocess = clip.load('ViT-B/32', device)
+            self.clip_model.eval()
+            for child in self.clip_model.children():
+                for param in child.parameters():
+                    param.requires_grad = False
+            for template in tqdm(template_list):
                 print(template)
-                text_features_for_classes = torch.cat([self.clip_model.encode_text(clip.tokenize(template.format(c.split('_(')[0])).to(device)).clone().detach() for c in self.CLASSES])
-                self.text_features_for_classes.append(text_features_for_classes)
+                text_features_for_classes = torch.cat([self.clip_model.encode_text(clip.tokenize(template.format(c)).to(device)).detach() for c in self.CLASSES])
+                self.text_features_for_classes.append(F.normalize(text_features_for_classes,dim=-1))
 
-            self.text_features_for_classes = torch.stack(self.text_features_for_classes).mean(dim=0,keepdim=True)
-            torch.save(self.text_features_for_classes,save_path)
+            self.text_features_for_classes = torch.stack(self.text_features_for_classes).mean(dim=0)
+            torch.save(self.text_features_for_classes.detach().cpu(),save_path)
         self.text_features_for_classes = self.text_features_for_classes.float()
-        self.text_features_for_classes = torch.nn.functional.normalize(self.text_features_for_classes,p=2,dim=-1).squeeze(0)
-
-        self.text_features_for_classes_learned = torch.load(text_embedding).to(self.device)
-        # self.text_features_for_classes_learned = torch.load("text_embedding/pos56789_ens.pth").to(self.device)
-        self.text_features_for_classes_learned = torch.nn.functional.normalize(
-            self.text_features_for_classes_learned,p=2,dim=-1).squeeze(0)
-        # reporter.report()
+        self.text_features_for_classes = F.normalize(self.text_features_for_classes,dim=-1)
         print('text embedding finished, {} passed'.format(time.time()-time_start))
+        # reporter.report()
+        # self.proposals = mmcv.load('data/lvis_v1/proposals/rpn_r101_fpn_lvis_val.pkl')
+        # coco = LVIS('data/lvis_v1/annotations/lvis_v1_val.json')
+        # img_ids = coco.get_img_ids()
+        # self.file_idxs = dict()
+        # for i,id in enumerate(img_ids):
+        #     info = coco.load_imgs([id])[0]
+        #     filename = info['coco_url'].replace(
+        #     'http://images.cocodataset.org/', '')
+        #     self.file_idxs[filename] = i
         self.bg_embedding = nn.Linear(1,512)
         self.projection = nn.Linear(1024,512)
         self.temperature = 0.01
-        # self.bg_classifier = nn.Sequential(
-        #     nn.Linear(512,256),
-        #     nn.ReLU(),
-        #     nn.Linear(256,2)
-        # )
+        self.accuracy_align = []
+        self.accuracy = []
+        # self.trans_to_pil = ToPILImage()
+        self.color_type = 'color'
+        self.file_client = mmcv.FileClient(backend='disk')
         if self.ensemble:
             self.projection_for_image = nn.Linear(1024,512)
             nn.init.xavier_uniform_(self.projection_for_image.weight)
@@ -132,6 +148,14 @@ class StandardRoIHeadColReuse(BaseRoIHead, BBoxTestMixin, MaskTestMixin):
         nn.init.constant_(self.projection.bias, 0)
 
 
+    def init_assigner_sampler(self):
+        """Initialize assigner and sampler."""
+        self.bbox_assigner = None
+        self.bbox_sampler = None
+        if self.train_cfg:
+            self.bbox_assigner = build_assigner(self.train_cfg.assigner)
+            self.bbox_sampler = build_sampler(
+                self.train_cfg.sampler, context=self)
     def init_assigner_sampler(self):
         """Initialize assigner and sampler."""
         self.bbox_assigner = None
@@ -188,21 +212,9 @@ class StandardRoIHeadColReuse(BaseRoIHead, BBoxTestMixin, MaskTestMixin):
             mask_results = self._mask_forward(x, mask_rois)
             outs = outs + (mask_results['mask_pred'], )
         return outs
-
-    def bbox_jitter(self, gt, gt_labels, img_meta, N):
-        origin = gt.repeat(N, 1)
-        delta = torch.rand_like(origin)
-        a = torch.Tensor([0.6, 0.6, 0.2, 0.2]).to(delta.device)
-        b = torch.Tensor([-.3, -.3, -.1, -.1]).to(delta.device)
-        delta = delta * a + b
-        
-        means = delta.new_tensor(self.bbox_head.bbox_coder.means).view(1, -1)
-        stds = delta.new_tensor(self.bbox_head.bbox_coder.stds).view(1, -1)
-        delta = (delta - means) / stds
-
-        jitter = self.bbox_head.bbox_coder.decode(origin, delta, max_shape=img_meta['img_shape'])
-        
-        return jitter, gt_labels.repeat(N)
+    
+    def is_main_process(self): 
+        return self.rank == 0
 
     def forward_train(self,
                       x,
@@ -214,8 +226,7 @@ class StandardRoIHeadColReuse(BaseRoIHead, BBoxTestMixin, MaskTestMixin):
                       gt_bboxes,
                       gt_labels,
                       gt_bboxes_ignore=None,
-                      gt_masks=None,
-                      ):
+                      gt_masks=None):
         """
         Args:
             x (list[Tensor]): list of multi-level img features.
@@ -236,13 +247,6 @@ class StandardRoIHeadColReuse(BaseRoIHead, BBoxTestMixin, MaskTestMixin):
         Returns:
             dict[str, Tensor]: a dictionary of loss components
         """
-
-        # if self.rank == 0:
-        #     viz_box, viz_label = self.bbox_jitter(gt_bboxes[0], gt_labels[0], img_metas[0], 4)
-        #     visualize_oam_boxes(viz_box, viz_label, img[0], img_metas[0],
-        #                         win_name='visualize box base', show=False,
-        #                         out_dir='/home/common/zzh/mmdetection/workdirs/viz/', show_score_thr=0)
-
         # assign gts and sample proposals
         if self.with_bbox or self.with_mask:
             num_imgs = len(img_metas)
@@ -250,9 +254,6 @@ class StandardRoIHeadColReuse(BaseRoIHead, BBoxTestMixin, MaskTestMixin):
                 gt_bboxes_ignore = [None for _ in range(num_imgs)]
             sampling_results = []
             for i in range(num_imgs):
-                # print("------assign-------")
-                # print(gt_bboxes_ignore)
-                # print(gt_labels)
                 assign_result = self.bbox_assigner.assign(
                     proposal_list[i], gt_bboxes[i], gt_bboxes_ignore[i],
                     gt_labels[i])
@@ -267,9 +268,9 @@ class StandardRoIHeadColReuse(BaseRoIHead, BBoxTestMixin, MaskTestMixin):
         losses = dict()
         # bbox head forward and loss
         if self.with_bbox:
-            bbox_results = self._bbox_forward_train(x,img,sampling_results,proposals_pre_computed,
+            bbox_results = self._bbox_forward_train(x,img,img_no_normalize,sampling_results,proposals_pre_computed,
                                                     gt_bboxes, gt_labels,
-                                                    img_metas, img_no_normalize)
+                                                    img_metas)
             losses.update(bbox_results['loss_bbox'])
 
         # mask head forward and loss
@@ -281,19 +282,83 @@ class StandardRoIHeadColReuse(BaseRoIHead, BBoxTestMixin, MaskTestMixin):
 
         return losses
 
-
-    # @auto_fp16()
-    def clip_image_forward(self,img,bboxes):
-        # bboxes = bboxes.half()
-        #----------------------------------------
-        #using roi_align
+    def clip_image_forward_align(self,img,bboxes,num_proposals_per_img,flag=False):
         cropped_images = roi_align(img,bboxes,(224,224))
-        print("clip_image_forward,shape=", cropped_images.shape)
-        #--------------------------------------
         image_features = self.clip_model.encode_image(cropped_images)
         return image_features
 
+    # @auto_fp16()
+    def clip_image_forward(self,img_metas,bboxes,num_proposals_per_img,flag=False):
+        imgs = []
+        bboxes = list(bboxes.clone().split(num_proposals_per_img))
+        scale_factors = tuple(img_meta['scale_factor'] for img_meta in img_metas)
+        for i,img_meta in enumerate(img_metas):
+            img_bytes = self.file_client.get(img_meta['filename'])
+            buff = io.BytesIO(img_bytes)
+            im = Image.open(buff)
+            imgs.append(im)
+            if img_meta['flip']:
+                w = img_meta['img_shape'][1]
+                flipped = bboxes[i].clone()
+                flipped[..., 1::4] = w - bboxes[i][..., 3::4]
+                flipped[..., 3::4] = w - bboxes[i][..., 1::4]
+                bboxes[i] = flipped
+        # if self.rank == 0:
+            # print(img_metas[0],imgs[0].size)
+            # print(bboxes[0][:,1:]/bboxes[0].new_tensor(scale_factors[0]),self.proposals[self.file_idxs[img_metas[0]['ori_filename']]][0])
+        cropped_images = []
+        for img_id,bbox in enumerate(bboxes):
+            bbox_raw = bbox[:,1:]
+            bbox_raw /= bbox_raw.new_tensor(scale_factors[img_id])
+            img_shape = imgs[img_id].size
+            # bbox = bbox_raw
+            # bbox = torch.dstack([torch.floor(bbox_raw[:,0]),torch.floor(bbox_raw[:,1]),torch.ceil(bbox_raw[:,2]),torch.ceil(bbox_raw[:,3])]).squeeze(0)
+            bbox = torch.dstack([torch.floor(bbox_raw[:,0]-0.001),torch.floor(bbox_raw[:,1]-0.001),torch.ceil(bbox_raw[:,2]+0.001),torch.ceil(bbox_raw[:,3]+0.001)]).squeeze(0)
+            bbox[:,[0,2]].clamp_(min=0,max=img_shape[0])
+            bbox[:,[1,3]].clamp_(min=0,max=img_shape[1])
+            bbox = bbox.detach().cpu().numpy()
+            # bbox = np.dstack([np.floor(bbox_raw[:,0]),np.floor(bbox_raw[:,1]),np.ceil(bbox_raw[:,2]),np.ceil(bbox_raw[:,3])]).squeeze(0)
+            cnt = -1
+            for box in bbox:
+                cnt += 1
+                cropped_image = imgs[img_id].crop(box)
+                # if flag:
+                    # cropped_image.save('workdirs/output_proposals_15/' + str(cnt) + '_' + img_metas[img_id]['filename'].split('/')[-1])
+                try:
+                    cropped_image = self.preprocess(cropped_image).to(self.device)
+                except:
+                    print(img_metas[img_id]['flip'],flag)
+                    print(box)
+                    raise RuntimeError
+                cropped_images.append(cropped_image)
+        cropped_images = torch.stack(cropped_images)
+        image_features = self.clip_model.encode_image(cropped_images)
+        return image_features
 
+    def boxto15(self, bboxes):
+        if bboxes.shape[1] == 5:
+            bboxes15 = torch.dstack([
+                        bboxes[:,0],
+                        1.25 * bboxes[:, 1] - 0.25 * bboxes[:, 3], 
+                        1.25 * bboxes[:, 2] - 0.25 * bboxes[:, 4],
+                        1.25 * bboxes[:, 3] - 0.25 * bboxes[:, 1], 
+                        1.25 * bboxes[:, 4] - 0.25 * bboxes[:, 2]
+                        ]).squeeze(0)
+        else:
+            bboxes15 = torch.dstack([
+                        1.25 * bboxes[:, 0] - 0.25 * bboxes[:, 2], 
+                        1.25 * bboxes[:, 1] - 0.25 * bboxes[:, 3],
+                        1.25 * bboxes[:, 2] - 0.25 * bboxes[:, 0], 
+                        1.25 * bboxes[:, 3] - 0.25 * bboxes[:, 1]
+                        ]).squeeze(0)
+
+
+        return bboxes15
+
+    def checkdir(self,path): 
+        path_prefix = osp.dirname(path)
+        if not osp.exists(path_prefix):
+            os.makedirs(path_prefix)
 
     def _bbox_forward(self, x, rois):
         """Box head forward function used in both training and testing."""
@@ -303,11 +368,10 @@ class StandardRoIHeadColReuse(BaseRoIHead, BBoxTestMixin, MaskTestMixin):
             x[:self.bbox_roi_extractor.num_inputs], rois)
         if self.with_shared_head:
             bbox_feats = self.shared_head(bbox_feats)
-        print(bbox_feats.shape)
-        bbox_pred = self.bbox_head(bbox_feats)
+        region_embeddings = self.bbox_head.forward_embedding(bbox_feats)
+        bbox_pred = self.bbox_head(region_embeddings)
         bbox_results = dict(
             bbox_pred=bbox_pred, bbox_feats=bbox_feats)
-        region_embeddings = self.bbox_head.forward_embedding(bbox_feats)
         return bbox_results, region_embeddings
 
     def _bbox_forward_for_image(self, x, rois):
@@ -323,12 +387,17 @@ class StandardRoIHeadColReuse(BaseRoIHead, BBoxTestMixin, MaskTestMixin):
 
         return None, region_embeddings
 
-    def img2pil2feat(self, img, boxs, name):
+    def img2pil2feat(self, img, boxs, name=None):
         img = np.array(img.detach().cpu()).astype(np.uint8)
-        img = Image.fromarray(img)
-        boxs = torch.dstack([torch.floor(boxs[:,0]-0.001),torch.floor(boxs[:,1]-0.001),torch.ceil(boxs[:,2]+0.001),torch.ceil(boxs[:,3])+0.001]).squeeze(0)
-
+        img = Image.fromarray(img.transpose(1,2,0))
+        img_shape = img.size
+        # print(img.mode)
+        # print(img.size)
+        # print(boxs)
+        boxs = torch.dstack([torch.floor(boxs[:,0]-0.001),torch.floor(boxs[:,1]-0.001),torch.ceil(boxs[:,2]),torch.ceil(boxs[:,3])]).squeeze(0)
         # boxs = torch.dstack([torch.floor(boxs[:,0]),torch.floor(boxs[:,1]),torch.ceil(boxs[:,2]),torch.ceil(boxs[:,3])]).squeeze(0)
+        boxs[:,[0,2]].clamp_(min=0,max=img_shape[0])
+        boxs[:,[1,3]].clamp_(min=0,max=img_shape[1])
         boxs = boxs.detach().cpu().numpy()
         # print(boxs)
         preprocessed = []
@@ -343,113 +412,64 @@ class StandardRoIHeadColReuse(BaseRoIHead, BBoxTestMixin, MaskTestMixin):
         preprocessed = torch.stack(preprocessed).to(self.device)
         features = self.clip_model.encode_image(preprocessed)
         return features
+
     
-    def boxto15(self, bboxes):
-        bboxes15 = torch.dstack(
-            [1.25 * bboxes[:, 0] - 0.25 * bboxes[:, 2], 1.25 * bboxes[:, 1] - 0.25 * bboxes[:, 3],
-            1.25 * bboxes[:, 2] - 0.25 * bboxes[:, 0], 1.25 * bboxes[:, 3] - 0.25 * bboxes[:, 1]]).squeeze(0)
-        return bboxes15
-
-    def checkdir(self, path): 
-       path_prefix = osp.dirname(path)
-       if not osp.exists(path_prefix):
-           os.makedirs(path_prefix)
-
-    def _bbox_forward_train(self, x, img, sampling_results, proposals_pre_computed, gt_bboxes, gt_labels,
-                            img_metas, img_no_normalize):
+    def _bbox_forward_train(self, x, img, img_no_normalize, sampling_results, proposals_pre_computed, gt_bboxes, gt_labels,
+                            img_metas):
         """Run forward function and calculate loss for box head in training."""
-
         rois = bbox2roi([res.bboxes for res in sampling_results])
-        input_one = x[0].new_ones(1)
-        bg_class_embedding = self.bg_embedding(input_one).reshape(1, 512)
-        bg_class_embedding = torch.nn.functional.normalize(bg_class_embedding, p=2, dim=1)
-        bbox_results, region_embeddings = self._bbox_forward(x, rois)
-        # ----------------------------------------------------------
-        # if self.ensemble:
-        # num_proposals_per_img = tuple(len(proposal) for proposal in proposals_pre_computed)
-        # rois_image = torch.cat(proposals_pre_computed, dim=0)
-        # batch_index = torch.cat([x[0].new_full((num_proposals_per_img[i],1),i) for i in range(len(num_proposals_per_img))],0)
-        # rois_image = torch.cat([batch_index, rois_image[..., :4]], dim=-1)
-        # bboxes = rois_image
         # ------------------------------------------------------------
-        # not using precomputed proposals
-        # bboxes = rois
-        # -------------------------------------------------------------
-        # print("bboxes\n", gt_bboxes[0])
-        # print("img\n", img.shape)
-        # print("img no norm\n", img_no_normalize.shape)
-        
-        
-        assert self.clip_model.visual.input_resolution==224
-
+        bbox_results, region_embeddings = self._bbox_forward(x, rois)
         for i in range(len(img_metas)):
+            save_path = os.path.join('lvis_clip_image_embedding.zip/data/lvis_clip_image_embedding', img_metas[i]['ori_filename'].split('.')[0] + '.pth')
+            f = self.zipfile.get(save_path)
+            stream = io.BytesIO(f)
+            clip_image_features_ensemble_proposal = torch.load(stream).to(self.device)
+            # clip_image_features = self.img2pil2feat(img_no_normalize[i], proposals_pre_computed[i])
+            # clip_image_features15 = self.img2pil2feat(img_no_normalize[i], self.boxto15(proposals_pre_computed[i]))
+            # clip_image_features_single = clip_image_features + clip_image_features15
+            # clip_image_features_single = clip_image_features_single.float()
+            # clip_image_features_ensemble_proposal = torch.nn.functional.normalize(clip_image_features_single, p=2, dim=1)
+
             res = self.bbox_assigner.assign(proposals_pre_computed[i], gt_bboxes[i], gt_labels=gt_labels[i])
             valid = res.max_overlaps >= 0.1
             proposal = proposals_pre_computed[i][valid]
             label = res.labels[valid]
             iou = res.max_overlaps[valid]
-
-            # proposal, label, iou = proposals_pre_computed[i], res.labels, res.max_overlaps
-            
+           
 
             proposal = bbox2roi([gt_bboxes[i]])
             label = torch.cat([label, gt_labels[i]])
             iou = torch.cat([iou, iou.new_ones(len(gt_bboxes[i]))])
 
-            save_path = os.path.join('lvis_clip_image_embedding.zip/data/lvis_clip_image_embedding', img_metas[i]['ori_filename'].split('.')[0] + '.pth')
-            f = self.zipfile.get(save_path)
-            stream = io.BytesIO(f)
-            clip_image_features_ensemble_proposal = torch.load(stream).to(self.device)
-
-            if len(proposal) > 0:
-                proposal15 = self.boxto15(proposal)
-                
-                save_path = os.path.join('./testbed/', img_metas[i]['ori_filename'].split('.')[0] + "_crop")
-                feats = self.img2pil2feat(img_no_normalize[i], proposal, save_path)
-                feats15 = self.img2pil2feat(img_no_normalize[i], proposal15, save_path+"15")
+            proposal15 = self.boxto15(proposal)
+            # save_path = os.path.join('./testbed/', img_metas[i]['ori_filename'].split('.')[0] + "_crop")
+            if len(proposal)>0:
+                # feats = self.clip_image_forward((img_metas[i],), proposal,(len(proposal),))
+                # feats15 = self.clip_image_forward((img_metas[i],), proposal15,(len(proposal),))
+                feats = self.img2pil2feat(img_no_normalize[i], proposal[:,1:])
+                feats15 = self.img2pil2feat(img_no_normalize[i], proposal15[:,1:])
 
                 clip_image_features_ensemble_gt = feats + feats15
                 clip_image_features_ensemble_gt = clip_image_features_ensemble_gt.float()
                 clip_image_features_ensemble_gt = torch.nn.functional.normalize(clip_image_features_ensemble_gt, p=2, dim=1)
                 clip_image_features_ensemble = torch.cat([clip_image_features_ensemble_proposal[valid],clip_image_features_ensemble_gt],0)
-
-                save_path = os.path.join(self.save_feature_dir, img_metas[0]['ori_filename'].split('.')[0] + '.pth')
-                os.makedirs(os.path.split(save_path)[0], exist_ok=True)
-                torch.save((clip_image_features_ensemble.cpu(), label.cpu(), iou.cpu()), save_path)
-                print("save ", save_path)
             else: 
                 clip_image_features_ensemble = clip_image_features_ensemble_proposal[valid]
-
-
-        # if self.load_feature:
-        #     clip_image_features_ensemble = []
-        #     for i in range(len(img_metas)):
-        #         save_path = os.path.join('./data/lvis_clip_image_embedding', img_metas[i]['ori_filename'].split('.')[0] + '.pth')
-        #         clip_image_features_ensemble.append(torch.load(save_path).to(self.device))
-        #     clip_image_features_ensemble = torch.cat(clip_image_features_ensemble, dim=0)
-        # else:
-        #     clip_image_features = self.clip_image_forward(img, bboxes)
-        #     bboxes15 = torch.dstack(
-        #         [bboxes[:, 0], 1.25 * bboxes[:, 1] - 0.25 * bboxes[:, 3], 1.25 * bboxes[:, 2] - 0.25 * bboxes[:, 4],
-        #         1.25 * bboxes[:, 3] - 0.25 *
-        #         bboxes[:, 1], 1.25 * bboxes[:, 4] - 0.25 * bboxes[:, 2]]).squeeze()
-        #     clip_image_features15 = self.clip_image_forward(img, bboxes15)
-        #     clip_image_features_ensemble = clip_image_features + clip_image_features15
-
-        #     clip_image_features_ensemble = clip_image_features_ensemble.float()
-        #     clip_image_features_ensemble = torch.nn.functional.normalize(clip_image_features_ensemble, p=2, dim=1)
-
-        #     for i in range(len(img_metas)):
-        #         save_path = os.path.join('./data/lvis_clip_image_proposal_embedding', img_metas[i]['ori_filename'].split('.')[0] + '.pth')
-        #         torch.save((clip_image_features_ensemble, gt_labels), save_path)
+            if self.save_feature_dir is not None:
+                save_path = os.path.join(self.save_feature_dir,img_metas[0]['ori_filename'].split('.')[0] + '.pth')
+            else:
+                save_path = os.path.join('./data/lvis_clip_image_proposal_embedding', img_metas[0]['ori_filename'].split('.')[0] + '.pth')
+            self.checkdir(save_path)
+            torch.save((clip_image_features_ensemble.cpu(), label.cpu(), iou.cpu()), save_path)
 
         bbox_targets = self.bbox_head.get_targets(sampling_results, gt_bboxes,
                                                   gt_labels, self.train_cfg)
+        
 
         loss_bbox = self.bbox_head.loss(
             bbox_results['bbox_pred'], rois,
             *bbox_targets)
-        # loss_bbox.update(text_cls_loss=text_cls_loss)
         bbox_results.update(loss_bbox=loss_bbox)
         return bbox_results
 
@@ -536,9 +556,10 @@ class StandardRoIHeadColReuse(BaseRoIHead, BBoxTestMixin, MaskTestMixin):
     def simple_test_bboxes(self,
                            x,
                            img,
+                           img_no_normalize,
                            img_metas,
                            proposals,
-                           # proposals_pre_computed,
+                           proposals_pre_computed,
                            rcnn_test_cfg,
                            rescale=False):
         """Test only det bboxes without augmentation.
@@ -562,7 +583,12 @@ class StandardRoIHeadColReuse(BaseRoIHead, BBoxTestMixin, MaskTestMixin):
         # get origin input shape to support onnx dynamic input shape
         img_shapes = tuple(meta['img_shape'] for meta in img_metas)
         scale_factors = tuple(meta['scale_factor'] for meta in img_metas)
+        # proposals = proposals_pre_computed
         rois = bbox2roi(proposals)
+        num_proposals_per_img = tuple(len(proposal) for proposal in proposals)
+        # rois_image = torch.cat(proposals_pre_computed, dim=0)
+        # batch_index = torch.cat([x[0].new_full((num_proposals_per_img[i],1),i) for i in range(len(num_proposals_per_img))],0)
+        # rois = torch.cat([batch_index, rois_image[..., :4]], dim=-1)
 
         bbox_results,region_embeddings = self._bbox_forward(x,rois)
         region_embeddings = self.projection(region_embeddings)
@@ -571,70 +597,109 @@ class StandardRoIHeadColReuse(BaseRoIHead, BBoxTestMixin, MaskTestMixin):
         bg_class_embedding = self.bg_embedding(input_one).unsqueeze(0)
         bg_class_embedding = torch.nn.functional.normalize(bg_class_embedding,p=2,dim=1)
         text_features = torch.cat([self.text_features_for_classes,bg_class_embedding],dim=0)
-        # text_features_learned =  torch.cat([self.text_features_for_classes_learned,bg_class_embedding],dim=0)
-        text_features_learned =  self.text_features_for_classes_learned
-        # text_features_learned = text_features
         #-----------------------------------------------------
         # """
         cls_score_text = region_embeddings@text_features.T
-        # cls_score_text = cls_score_text/cls_score_text.std(dim=1).mean()*4.7
-        #0.009#0.008#0.007
         cls_score_text = cls_score_text/0.007
         cls_score_text = cls_score_text.softmax(dim=1)
         #--------------------------------------------
-        # """
-        assert self.ensemble
         if self.ensemble:
+            # """
+            # bbox_pred = bbox_results['bbox_pred']
+            # num_proposals_per_img = tuple(len(p) for p in proposals)
+            # rois = rois.split(num_proposals_per_img, 0)
+            # # some detector with_reg is False, bbox_pred will be None
+            # if bbox_pred is not None:
+            #     # the bbox prediction of some detectors like SABL is not Tensor
+            #     if isinstance(bbox_pred, torch.Tensor):
+            #         bbox_pred = bbox_pred.split(num_proposals_per_img, 0)
+            #     else:
+            #         bbox_pred = self.bbox_head.bbox_pred_split(
+            #             bbox_pred, num_proposals_per_img)
+            # bboxes = []
+            # for i in range(len(proposals)):
+            #     bbox = self.bbox_head.compute_bboxes(
+            #     rois[i],
+            #     bbox_pred[i],
+            #     img_shapes[i],
+            #     scale_factors[i],
+            #     rescale=rescale,
+            #     cfg=None)
+            #     bboxes.append(bbox)
+            # bboxes = torch.cat(bboxes,0)
+            # """
+            # rois_image = bbox2roi(bboxes[:,:4])
             _,region_embeddings_image = self._bbox_forward_for_image(x,rois)
             region_embeddings_image = self.projection_for_image(region_embeddings_image)
             region_embeddings_image = torch.nn.functional.normalize(region_embeddings_image,p=2,dim=1)
-
-            cls_score_image = region_embeddings_image@text_features_learned.T
-            # tmp = self.clip_image_forward(img,bboxes)
-            # self.reporter.report()
-        #0.3#0.65
-            # cls_score_image[:,:-1] = cls_score_image[:,:-1]/cls_score_image[:,:-1].std(dim=1).mean()*0.65
-        #0.006#0.007
+            cls_score_image = region_embeddings_image@text_features.T
             cls_score_image = cls_score_image/0.007
             cls_score_image[:,-1] = -1e11
             cls_score_image = cls_score_image.softmax(dim=1)
-        # """
         #------------------------------------------------
         """
         #using clip to inference
-        clip_image_features = self.clip_image_forward(img,rois)
-        clip_image_features = torch.nn.functional.normalize(clip_image_features,p=2,dim=1)
-        clip_image_features = clip_image_features.type(torch.float)
-        cls_score_clip = (clip_image_features @ text_features.T).reshape(clip_image_features.size(0), -1,self.num_classes + 1)
-        cls_score_clip = cls_score_clip.max(dim=1)[0]
-        cls_score_clip[:,self.novel_label_ids] -= 0.001
-        # print('#'*100)
-        # print(cls_score_clip[:,self.base_label_ids].mean())
-        # print(cls_score_clip[:,self.novel_label_ids].mean())
-        #0.2261
-        #0.2270
-        cls_score_clip[:,:-1] = cls_score_clip[:,:-1]/cls_score_clip[:,:-1].std(dim=1,keepdim=True)*2.6
-        cls_score_clip[:,-1] = -1e2
+        bboxes = rois
+        save_path = os.path.join('./data/lvis_clip_image_embedding_test_offline_img2pil', img_metas[0]['ori_filename'].split('.')[0] + '.pth')
+        if not osp.exists(save_path):
+        # if True:
+            bboxes15 = self.boxto15(bboxes)
+
+            clip_image_features_img2pil = self.img2pil2feat(img_no_normalize[0], bboxes[:,1:])
+            clip_image_features15_img2pil = self.img2pil2feat(img_no_normalize[0], bboxes15[:,1:])
+            clip_image_features_ensemble_img2pil = clip_image_features_img2pil + clip_image_features15_img2pil
+            clip_image_features_ensemble_img2pil = clip_image_features_ensemble_img2pil.float()
+            clip_image_features_ensemble_img2pil = F.normalize(clip_image_features_ensemble_img2pil,p=2,dim=1)
+
+            # clip_image_features = self.clip_image_forward(img_metas,bboxes,num_proposals_per_img)
+            # clip_image_features15 = self.clip_image_forward(img_metas, bboxes15, num_proposals_per_img)
+            # clip_image_features_ensemble = clip_image_features + clip_image_features15
+            # clip_image_features_ensemble = clip_image_features_ensemble.float()
+            # clip_image_features_ensemble = F.normalize(clip_image_features_ensemble,p=2,dim=1)
+
+            # clip_image_features_align = self.clip_image_forward_align(img,bboxes,num_proposals_per_img)
+            # clip_image_features15_align = self.clip_image_forward_align(img, bboxes15, num_proposals_per_img)
+            # clip_image_features_ensemble_align = clip_image_features_align + clip_image_features15_align
+            # clip_image_features_ensemble_align = clip_image_features_ensemble_align.float()
+            # clip_image_features_ensemble_align = F.normalize(clip_image_features_ensemble_align,p=2,dim=1)
+
+            torch.save(clip_image_features_ensemble_img2pil.cpu(), save_path)
+        else:
+            clip_image_features_ensemble_img2pil = torch.load(save_path).to(self.device)
+        # cls_score_clip[:,:-1] = cls_score_clip[:,:-1]/cls_score_clip[:,:-1].std(dim=1,keepdim=True)*0.006
+        # print(cls_score_clip.std(dim=1).mean())
+      
+        # cls_score_clip = clip_image_features_ensemble @ text_features.T
         # cls_score_clip = torch.exp(cls_score_clip-1)
-        # cls_score_clip[:,-1] = 1 - cls_score_clip[:,:-1].max(dim=1)[0]
-        # cls_score_clip = cls_score_clip/self.temperature
-        #0.007#0.006
-        # cls_score_clip = cls_score_clip/0.006
-        cls_score_clip = cls_score_clip.softmax(dim=1)
-        cls_score_image = cls_score_clip
+        # cls_score_clip = cls_score_clip/0.007
+        # cls_score_clip[:,-1] = -1e11
+        # cls_score_clip = cls_score_clip.softmax(dim=1)
+
+        cls_score_clip_img2pil = clip_image_features_ensemble_img2pil @ text_features.T
+        cls_score_clip_img2pil = torch.exp(cls_score_clip_img2pil-1)
+        cls_score_clip_img2pil = cls_score_clip_img2pil/0.007
+        cls_score_clip_img2pil[:,-1] = -1e11
+        cls_score_clip_img2pil = cls_score_clip_img2pil.softmax(dim=1)
+
+        # cls_score_clip_align = clip_image_features_ensemble_align @ text_features.T
+        # cls_score_clip_align = torch.exp(cls_score_clip_align-1)
+        # cls_score_clip_align = cls_score_clip_align/0.007
+        # cls_score_clip_align[:,-1] = -1e11
+        # cls_score_clip_align = cls_score_clip_align.softmax(dim=1)
         """
         #--------------------------------------------------
         # """
-        a = 0.4
-        # if self.ensemble:
-        if False:
-            # cls_score= torch.where(self.novel_index,cls_score_image**(1-a)*cls_score_text**a,
-            #                   cls_score_text**(1-a)*cls_score_image**a)
-            cls_score = cls_score_image**(1-a)*cls_score_text**a
+        a = 1/3
+        if self.ensemble:
+            # cls_score_image = cls_score_clip_img2pil
+            cls_score= torch.where(self.novel_index,cls_score_image**(1-a)*cls_score_text**a,
+                               cls_score_text**(1-a)*cls_score_image**a)
+            # cls_score_align= torch.where(self.novel_index,cls_score_clip_align**(1-a)*cls_score_text**a,
+                            #    cls_score_text**(1-a)*cls_score_clip_align**a)
+            # cls_score = cls_score_image**(1-a)*cls_score_text**a
+            # cls_score = cls_score_image
         else:
-            # cls_score = cls_score_text
-            cls_score = cls_score_image
-        
+            cls_score = cls_score_text
         # """
         bbox_pred = bbox_results['bbox_pred']
         num_proposals_per_img = tuple(len(p) for p in proposals)
@@ -666,11 +731,15 @@ class StandardRoIHeadColReuse(BaseRoIHead, BBoxTestMixin, MaskTestMixin):
                 cfg=rcnn_test_cfg)
             det_bboxes.append(det_bbox)
             det_labels.append(det_label)
+            # for i,label in enumerate(det_label):
+                # box = det_bbox[i].detach().cpu().numpy().tolist()
+                # print('{} {} {} {} {} {}'.format(img_metas[0]['ori_filename'],box[4],box[0],box[1],box[2],box[3]),file=open('/home/dy20/mmdetection27/workdirs/det_result/{}_det_{}.txt'.format(self.rank,label),'a'))
         return det_bboxes, det_labels
 
     def simple_test(self,
                     x,
                     img,
+                    img_no_normalize,
                     proposal_list,
                     img_metas,
                     proposals=None,
@@ -680,7 +749,7 @@ class StandardRoIHeadColReuse(BaseRoIHead, BBoxTestMixin, MaskTestMixin):
         assert self.with_bbox, 'Bbox head must be implemented.'
 
         det_bboxes, det_labels = self.simple_test_bboxes(
-            x,img, img_metas, proposal_list, self.test_cfg, rescale=rescale)
+            x,img,img_no_normalize, img_metas, proposal_list,proposals, self.test_cfg, rescale=rescale)
         if torch.onnx.is_in_onnx_export():
             if self.with_mask:
                 segm_results = self.simple_test_mask(
@@ -728,3 +797,48 @@ class StandardRoIHeadColReuse(BaseRoIHead, BBoxTestMixin, MaskTestMixin):
             return [(bbox_results, segm_results)]
         else:
             return [bbox_results]
+
+    def aug_test_bboxes(self, feats, img_metas, proposal_list, rcnn_test_cfg):
+        """Test det bboxes with test time augmentation."""
+        aug_bboxes = []
+        aug_scores = []
+        for x, img_meta in zip(feats, img_metas):
+            # only one image in the batch
+            img_shape = img_meta[0]['img_shape']
+            scale_factor = img_meta[0]['scale_factor']
+            flip = img_meta[0]['flip']
+            flip_direction = img_meta[0]['flip_direction']
+            # TODO more flexible
+            proposals = bbox_mapping(proposal_list[0][:, :4], img_shape,
+                                     scale_factor, flip, flip_direction)
+            rois = bbox2roi([proposals])
+            bbox_results,region_embeddings = self._bbox_forward(x,rois)
+            region_embeddings = self.projection(region_embeddings)
+            region_embeddings = torch.nn.functional.normalize(region_embeddings,p=2,dim=1)
+            input_one = x[0].new_ones(1)
+            bg_class_embedding = self.bg_embedding(input_one).unsqueeze(0)
+            bg_class_embedding = torch.nn.functional.normalize(bg_class_embedding,p=2,dim=1)
+            text_features = torch.cat([self.text_features_for_classes,bg_class_embedding],dim=0)
+            cls_score_text = region_embeddings@text_features.T
+            cls_score_text = cls_score_text/0.007
+            #0.009#0.008#0.007
+            cls_score_text = cls_score_text.softmax(dim=1)
+            cls_score = cls_score_text
+            bboxes, scores = self.bbox_head.get_bboxes(
+                rois,
+                cls_score,
+                bbox_results['bbox_pred'],
+                img_shape,
+                scale_factor,
+                rescale=False,
+                cfg=None)
+            aug_bboxes.append(bboxes)
+            aug_scores.append(scores)
+        # after merging, bboxes will be rescaled to the original image size
+        merged_bboxes, merged_scores = merge_aug_bboxes(
+            aug_bboxes, aug_scores, img_metas, rcnn_test_cfg)
+        det_bboxes, det_labels = multiclass_nms(merged_bboxes, merged_scores,
+                                                rcnn_test_cfg.score_thr,
+                                                rcnn_test_cfg.nms,
+                                                rcnn_test_cfg.max_per_img)
+        return det_bboxes, det_labels
