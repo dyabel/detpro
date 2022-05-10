@@ -852,10 +852,10 @@ class LVISV1Dataset_ALLCLS(LVISV1Dataset):
         cats = {}
         self.ignore_ids = []
         self.img_ids = self.coco.get_img_ids()
-        self.img_ids = self.img_ids[:200]
+        # self.img_ids = self.img_ids[:200]
         #------------------------------------------
         self.id_idx = None
-        # """
+        """
         if not self.test_mode:
             self.id_idx = {}
             for idx,img_id in enumerate(self.img_ids):
@@ -871,7 +871,7 @@ class LVISV1Dataset_ALLCLS(LVISV1Dataset):
                 cnt += 1
                 rare_cls_img_ids.extend(self.coco.cat_img_map[cat])
             self.img_ids = np.unique(rare_cls_img_ids).tolist()
-        # """
+        """
         #-----------------------------------------------------
         data_infos = []
         for i in self.img_ids:
