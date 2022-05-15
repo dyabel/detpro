@@ -62,7 +62,7 @@ see [prepare.sh](https://github.com/dyabel/detpro/blob/main/prepare.sh).
 
 This process will take a long time. So we also provide the extracted clip image embeddings of precomputed proposals [baiduyun (code:o4n5)](https://pan.baidu.com/s/13vp8s6mU9IKSbF-OPRtX9g). You can download all these zip files and merge them into one file (lvis_clip_image_embedding.zip).
 ## Train RPN on Only Base Classes
-The training code and checkpoint are available here [baiduyun(code:tqsd)](https://pan.baidu.com/s/1y-nm_1TfKClLKXL113-Yb).
+The training code and checkpoint are available here [baiduyun(code:tqsd)](https://pan.baidu.com/s/1y-nm_1TfKClLKXL113-Ybg).
 ## Train DetPro
 see [detpro.sh](https://github.com/dyabel/detpro/blob/main/detpro.sh)
 ## Train ViLD with DetPro (Mask R-CNN)
