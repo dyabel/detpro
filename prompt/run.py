@@ -220,7 +220,9 @@ if __name__ == "__main__":
             print(f"epoch{i+1}")
             train_epoch(model, optimizer, train_dl, freq, mode_train)
             emb = get_embedding(model, CLASS_NAMES_FULL)
+            print('val on base')
             test_embedding(emb, val_dl1)
+            print('val on novel')
             test_embedding(emb, val_dl2)
             test_neg(emb)
             if emb.shape[0] > 1203:
