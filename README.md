@@ -69,6 +69,7 @@ see [detpro.sh](https://github.com/dyabel/detpro/blob/main/detpro.sh)
 see [vild_detpro.sh](https://github.com/dyabel/detpro/blob/main/vild_detpro.sh)
 ## Tranfer experiments
 see [transer.sh](https://github.com/dyabel/detpro/blob/main/transfer.sh)
+The empty prompt is provided [here](https://drive.google.com/drive/folders/1DSkfTO3TWrIW0k1kt67Ez-wLwXy9mVqF?usp=sharing), you can use it to generate the prompt for COCO, VOC and Objects365.
 # Citation
 ```
 @article{du2022learning,
